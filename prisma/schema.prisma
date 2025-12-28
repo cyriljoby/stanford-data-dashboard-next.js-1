@@ -109,6 +109,10 @@ model ResponseWithTeacher {
   period Int?
   answers Answer[]
   createdAt DateTime @default(now())
+
+  @@index([teacherLocationId, createdAt])
+  @@index([teacherId, createdAt])
+  @@index([formId])
 }
 
 model ResponseWithoutTeacher {

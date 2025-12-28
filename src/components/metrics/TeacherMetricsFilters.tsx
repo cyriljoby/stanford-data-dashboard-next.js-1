@@ -8,14 +8,16 @@ import SelectInput from "../form/SelectInput";
 import { downloadData } from "@/utils/actions";
 import { SubmitButton } from "../form/Buttons";
 import { useEffect } from "react";
-import { Input } from "../ui/input";
+import { DatePicker } from "../ui/date-picker";
 
 const TeacherMetricsFilters = ({
   teacherLocations,
   forms,
+  firstResponseDate,
 }: {
   teacherLocations: UserLocation[];
   forms: string[];
+  firstResponseDate?: Date;
 }) => {
   const [location, setLocation] = useState({
     country: "All",
@@ -26,6 +28,10 @@ const TeacherMetricsFilters = ({
     school: "All",
   });
   const [loading, setLoading] = useState(false);
+  const [startDate, setStartDate] = useState<Date | undefined>(
+    firstResponseDate
+  );
+  const [endDate, setEndDate] = useState<Date | undefined>(new Date());
   const handleExport = async (prevState: any, formData: FormData) => {
     try {
       setLoading(true);
@@ -35,6 +41,14 @@ const TeacherMetricsFilters = ({
       for (const [key, value] of formData.entries()) {
         console.log(key, value);
         if (value && value !== "All") paramsObj[key] = String(value);
+      }
+
+      // Add date filters if set
+      if (startDate) {
+        paramsObj.startDate = startDate.toISOString().split("T")[0];
+      }
+      if (endDate) {
+        paramsObj.endDate = endDate.toISOString().split("T")[0];
       }
 
       await downloadData(paramsObj);
@@ -327,11 +341,19 @@ const TeacherMetricsFilters = ({
         </div>
         <div>
           <Label htmlFor="startDate">Start Date</Label>
-          <Input id="startDate" name="startDate" type="date" />
+          <DatePicker
+            date={startDate}
+            onDateChange={setStartDate}
+            placeholder="Select start date"
+          />
         </div>
         <div>
           <Label htmlFor="endDate">End Date</Label>
-          <Input id="endDate" name="endDate" type="date" />
+          <DatePicker
+            date={endDate}
+            onDateChange={setEndDate}
+            placeholder="Select end date"
+          />
         </div>
         <SubmitButton
           disabled={loading}

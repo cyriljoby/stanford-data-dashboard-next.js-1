@@ -10,16 +10,18 @@ import { fetchLocations } from "@/utils/helpers";
 import { Label } from "../ui/label";
 import SelectInput from "../form/SelectInput";
 import { SubmitButton } from "../form/Buttons";
-import { Input } from "../ui/input";
+import { DatePicker } from "../ui/date-picker";
 
 const AdminMetricsFilters = ({
   role,
   adminLocation,
   forms,
+  firstResponseDate,
 }: {
   role: Roles;
   adminLocation: UserLocation | null;
   forms: string[];
+  firstResponseDate?: Date;
 }) => {
   let isUSA = adminLocation?.country === "United States";
   const fixedCountry = role != Roles.stanford;
@@ -28,6 +30,11 @@ const AdminMetricsFilters = ({
   const fixedDistrict = fixedCounty && role != Roles.county;
   const fixedCityAndSchool = role == Roles.site;
   const [loading, setLoading] = useState(false);
+  const [startDate, setStartDate] = useState<Date | undefined>(
+    firstResponseDate
+  );
+  const [endDate, setEndDate] = useState<Date | undefined>(new Date());
+
   const handleExport = async (prevState: any, formData: FormData) => {
     try {
       setLoading(true);
@@ -37,6 +44,14 @@ const AdminMetricsFilters = ({
       for (const [key, value] of formData.entries()) {
         console.log(key, value);
         if (value && value !== "All") paramsObj[key] = String(value);
+      }
+
+      // Add date filters if set
+      if (startDate) {
+        paramsObj.startDate = startDate.toISOString().split("T")[0];
+      }
+      if (endDate) {
+        paramsObj.endDate = endDate.toISOString().split("T")[0];
       }
 
       await downloadData(paramsObj);
@@ -318,11 +333,19 @@ const AdminMetricsFilters = ({
         </div>
         <div>
           <Label htmlFor="startDate">Start Date</Label>
-          <Input id="startDate" name="startDate" type="date" />
+          <DatePicker
+            date={startDate}
+            onDateChange={setStartDate}
+            placeholder="Select start date"
+          />
         </div>
         <div>
           <Label htmlFor="endDate">End Date</Label>
-          <Input id="endDate" name="endDate" type="date" />
+          <DatePicker
+            date={endDate}
+            onDateChange={setEndDate}
+            placeholder="Select end date"
+          />
         </div>
         <SubmitButton
           disabled={loading}

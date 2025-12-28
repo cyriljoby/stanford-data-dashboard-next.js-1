@@ -15,8 +15,51 @@ export async function GET(request: NextRequest) {
     // ------------------------------
     // 1) Build location filters
     // ------------------------------
+    const role = get("role");
+    const userId = get("userId");
+
     console.log(" Computing location filters...");
     const whereLocation: any = { approved: true };
+
+    // For teachers: only get THEIR locations
+    if (role === "teacher" && userId) {
+      whereLocation.userId = userId;
+    }
+
+    // For admins (non-Stanford): enforce their assigned location
+    if (role && role !== "stanford" && role !== "teacher" && userId) {
+      const adminLocation = await prisma.userLocation.findFirst({
+        where: { userId },
+        select: {
+          country: true,
+          state: true,
+          county: true,
+          district: true,
+          city: true,
+          school: true,
+        },
+      });
+
+      if (adminLocation) {
+        // Enforce location constraints based on admin level
+        whereLocation.country = adminLocation.country;
+
+        if (role !== "country" && adminLocation.state) {
+          whereLocation.state = adminLocation.state;
+        }
+        if (role === "county" || role === "district" || role === "site") {
+          if (adminLocation.county) whereLocation.county = adminLocation.county;
+        }
+        if (role === "district" || role === "site") {
+          if (adminLocation.district) whereLocation.district = adminLocation.district;
+        }
+        if (role === "site") {
+          if (adminLocation.city) whereLocation.city = adminLocation.city;
+          if (adminLocation.school) whereLocation.school = adminLocation.school;
+        }
+      }
+    }
+
     const filterKeys = [
       "country",
       "state",
@@ -26,9 +69,12 @@ export async function GET(request: NextRequest) {
       "school",
     ];
 
+    // Apply user-selected filters (but can't override admin restrictions above)
     for (const key of filterKeys) {
       const val = get(key);
-      if (val && val !== "All") whereLocation[key] = val;
+      if (val && val !== "All" && !whereLocation[key]) {
+        whereLocation[key] = val;
+      }
     }
     console.log("Location filter:", whereLocation);
 
@@ -57,8 +103,6 @@ export async function GET(request: NextRequest) {
     };
 
     const form = get("form");
-    const role = get("role");
-    const userId = get("userId");
     const startDate = get("startDate");
     const endDate = get("endDate");
 
@@ -152,34 +196,33 @@ export async function GET(request: NextRequest) {
     // Pre-build all sheets with complete columns
     // ------------------------------
     console.log("Pre-building sheets with all question columns...");
-    const formGroupQuestions = new Map<string, Map<string, any>>();
 
-    // Group forms by base name and collect all unique questions
-    // Use question header name as key to avoid duplicating pre/post questions
+    // Group forms by base name and track questions by year
+    const formGroups = new Map<string, Map<string, any[]>>();
+
     for (const form of allForms) {
       const baseFormName = getBaseFormName(form.title);
 
-      if (!formGroupQuestions.has(baseFormName)) {
-        formGroupQuestions.set(baseFormName, new Map());
+      // Extract year from form title (e.g., "Form 2023" -> "2023")
+      const yearMatch = form.title.match(/\s(\d{4})$/);
+      const year = yearMatch ? yearMatch[1] : "unknown";
+
+      if (!formGroups.has(baseFormName)) {
+        formGroups.set(baseFormName, new Map());
       }
 
-      const questionMap = formGroupQuestions.get(baseFormName)!;
+      const yearMap = formGroups.get(baseFormName)!;
+      if (!yearMap.has(year)) {
+        yearMap.set(year, []);
+      }
 
-      form.questions.forEach((q: any) => {
-        if (q.showInTeacherExport) {
-          const headerName = q.name ?? q.question;
-
-          // Use header name as key to deduplicate pre/post questions with same text
-          if (!questionMap.has(headerName)) {
-            questionMap.set(headerName, q);
-          }
-        }
-      });
+      yearMap.get(year)!.push(form);
     }
 
-    // Create sheets with complete column sets
-    for (const [baseFormName, questionMap] of formGroupQuestions.entries()) {
+    // Create sheets with year-separated columns
+    for (const [baseFormName, yearMap] of formGroups.entries()) {
       const columns: any[] = [
+        { header: "Response ID", key: "responseId", width: 30 },
         { header: "Form Title", key: "formTitle", width: 25 },
         { header: "Form Type", key: "formType", width: 10 },
         { header: "Teacher Name", key: "teacherName", width: 25 },
@@ -194,20 +237,35 @@ export async function GET(request: NextRequest) {
         { header: "Created At", key: "createdAt", width: 22 },
       ];
 
-      // Add all question columns for this form group
-      for (const q of questionMap.values()) {
-        const label = q.name ?? q.question;
-        columns.push({
-          header: label.length > 80 ? label.slice(0, 77) + "..." : label,
-          key: `q_${q.id}`,
-          width: 40,
+      // Sort years chronologically (2023, 2024, etc.)
+      const sortedYears = Array.from(yearMap.keys()).sort();
+
+      // Add columns for each year separately
+      for (const year of sortedYears) {
+        const forms = yearMap.get(year)!;
+        // Use first form's questions as template for this year
+        const form = forms[0];
+
+        form.questions.forEach((q: any) => {
+          if (q.showInTeacherExport) {
+            const headerName = q.name ?? q.question;
+            const label = headerName.length > 70 ? headerName.slice(0, 67) + "..." : headerName;
+            // Only add year suffix if multiple years exist AND year is not "unknown" (current form)
+            const yearSuffix = sortedYears.length > 1 && year !== "unknown" ? ` (${year})` : "";
+
+            columns.push({
+              header: `${label}${yearSuffix}`,
+              key: `q_${q.id}`,
+              width: 40,
+            });
+          }
         });
       }
 
       const sheet = workbook.addWorksheet(baseFormName.slice(0, 31));
       sheet.columns = columns;
       sheets.set(baseFormName, sheet);
-      console.log(`Created sheet "${baseFormName}" with ${questionMap.size} question columns`);
+      console.log(`Created sheet "${baseFormName}" with columns for years: ${sortedYears.join(", ")}`);
     }
 
     // ------------------------------
@@ -272,6 +330,7 @@ export async function GET(request: NextRequest) {
         );
 
         const row: any = {
+          responseId: r.id,
           formTitle: form.title,
           formType: form.type,
           teacherName: r.teacher.name,
@@ -286,10 +345,21 @@ export async function GET(request: NextRequest) {
           createdAt: formatDate(r.createdAt),
         };
 
+        // Fill answer data using question IDs (year-specific columns)
+        let hasAnswerData = false;
         for (const q of form.questions) {
           if (q.showInTeacherExport) {
-            row[`q_${q.id}`] = answerMap.get(q.id) ?? "";
+            const answer = answerMap.get(q.id) ?? "";
+            row[`q_${q.id}`] = answer;
+            if (answer !== "") hasAnswerData = true;
           }
+        }
+
+        // Log rows with no answer data
+        if (!hasAnswerData) {
+          console.warn(
+            `⚠️  Row with no answer data - Response ID: ${r.id}, Form: ${form.title}, Teacher: ${r.teacher.email}`
+          );
         }
 
         // Collect row instead of writing immediately
@@ -304,8 +374,19 @@ export async function GET(request: NextRequest) {
 
     // Sort and write rows for each sheet
     for (const [baseFormName, rows] of sheetRows.entries()) {
-      // Sort by form title (puts 2023 before 2024)
-      rows.sort((a, b) => a.formTitle.localeCompare(b.formTitle));
+      // Sort by year first (2023, 2024, etc.), then by form title
+      rows.sort((a, b) => {
+        const yearA = a.formTitle.match(/\s(\d{4})$/)?.[1] || "9999";
+        const yearB = b.formTitle.match(/\s(\d{4})$/)?.[1] || "9999";
+
+        // Compare years first
+        if (yearA !== yearB) {
+          return yearA.localeCompare(yearB);
+        }
+
+        // If same year, compare by form title
+        return a.formTitle.localeCompare(b.formTitle);
+      });
 
       const sheet = sheets.get(baseFormName)!;
       for (const row of rows) {
