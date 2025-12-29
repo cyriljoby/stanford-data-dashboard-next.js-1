@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { toast } from "sonner";
 
 import {
   Card,
@@ -14,27 +15,19 @@ import {
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import Logo from "@/components/global/Logo";
-
-type AlertState =
-  | { kind: "success"; message: string }
-  | { kind: "error"; message: string }
-  | null;
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [alert, setAlert] = useState<AlertState>(null);
 
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!email) {
-      setAlert({ kind: "error", message: "Please enter your email." });
+      toast.error("Please enter your email.");
       return;
     }
     setIsLoading(true);
-    setAlert(null);
 
     try {
       const res = await fetch("/api/auth/forgot-password", {
@@ -48,17 +41,12 @@ export default function ForgotPasswordPage() {
         throw new Error(data?.message || "Request failed");
       }
 
-      setAlert({
-        kind: "success",
-        message:
-          "If an account exists for that email, a reset link has been sent.",
-      });
+      toast.success(
+        "If an account exists for that email, a reset link has been sent."
+      );
       setEmail("");
     } catch (err: any) {
-      setAlert({
-        kind: "error",
-        message: err?.message || "Something went wrong. Please try again.",
-      });
+      toast.error(err?.message || "Something went wrong. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -76,18 +64,6 @@ export default function ForgotPasswordPage() {
         </CardHeader>
 
         <CardContent>
-          {alert && (
-            <Alert
-              variant={alert.kind === "error" ? "destructive" : undefined}
-              className="mb-4"
-            >
-              <AlertTitle>
-                {alert.kind === "error" ? "Error" : "Success"}
-              </AlertTitle>
-              <AlertDescription>{alert.message}</AlertDescription>
-            </Alert>
-          )}
-
           <form onSubmit={onSubmit} className="space-y-4">
             <div className="grid gap-2">
               <Label htmlFor="email">Email</Label>

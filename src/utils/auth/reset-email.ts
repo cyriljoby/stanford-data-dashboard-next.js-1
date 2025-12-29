@@ -15,7 +15,7 @@ const transporter = nodemailer.createTransport({
 });
 
 function buildResetLink(token: string) {
-  return `${APP_URL}/forgotPassword/reset-password?token=${encodeURIComponent(token)}`;
+  return `${APP_URL}/forgotPassword/resetPassword?token=${encodeURIComponent(token)}`;
 }
 
 export async function sendPasswordResetEmail(to: string, token: string) {

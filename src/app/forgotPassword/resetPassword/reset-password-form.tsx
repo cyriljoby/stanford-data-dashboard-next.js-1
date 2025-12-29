@@ -2,29 +2,48 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { toast } from "sonner";
+import Link from "next/link";
+
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  CardFooter,
+} from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import Logo from "@/components/global/Logo";
 
 export default function ResetPasswordForm({ token }: { token?: string }) {
   const router = useRouter();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
-  const [message, setMessage] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!token) {
-      setMessage("Invalid or missing reset token.");
+      toast.error("Invalid or missing reset token.");
       return;
     }
 
     if (password !== confirm) {
-      setMessage("Passwords do not match.");
+      toast.error("Passwords do not match.");
+      return;
+    }
+
+    if (password.length < 8) {
+      toast.error("Password must be at least 8 characters long.");
       return;
     }
 
     try {
-      setLoading(true);
+      setIsLoading(true);
       const res = await fetch("/api/auth/reset-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -34,53 +53,87 @@ export default function ResetPasswordForm({ token }: { token?: string }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Error resetting password.");
 
-      setMessage("Password reset successful! Redirecting...");
+      toast.success("Password reset successful! Redirecting...");
       setTimeout(() => router.push("/login"), 1500);
     } catch (err: any) {
-      setMessage(err.message);
+      toast.error(err.message || "Something went wrong. Please try again.");
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
   if (!token) {
-    return <p className="text-center mt-10">Invalid or missing reset token.</p>;
+    return (
+      <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <Logo />
+            <CardTitle>Invalid Reset Link</CardTitle>
+            <CardDescription>
+              The password reset link is invalid or missing.
+            </CardDescription>
+          </CardHeader>
+          <CardFooter>
+            <Button variant="link" className="px-0" asChild>
+              <Link href="/forgotPassword">Request a new reset link</Link>
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+    );
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-4">
-      <h1 className="text-2xl font-semibold mb-6">Reset Password</h1>
-      <form
-        onSubmit={handleSubmit}
-        className="w-full max-w-sm flex flex-col gap-4"
-      >
-        <input
-          type="password"
-          placeholder="New password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="border p-2 rounded-md"
-          required
-        />
-        <input
-          type="password"
-          placeholder="Confirm new password"
-          value={confirm}
-          onChange={(e) => setConfirm(e.target.value)}
-          className="border p-2 rounded-md"
-          required
-        />
-        <button
-          type="submit"
-          disabled={loading}
-          className="bg-blue-600 text-white p-2 rounded-md hover:bg-blue-700"
-        >
-          {loading ? "Resetting..." : "Reset Password"}
-        </button>
-        {message && (
-          <p className="text-sm text-center text-gray-700 mt-2">{message}</p>
-        )}
-      </form>
+    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <Logo />
+          <CardTitle>Reset Password</CardTitle>
+          <CardDescription>
+            Enter your new password below.
+          </CardDescription>
+        </CardHeader>
+
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid gap-2">
+              <Label htmlFor="password">New Password</Label>
+              <Input
+                id="password"
+                type="password"
+                autoComplete="new-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={8}
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="confirm">Confirm New Password</Label>
+              <Input
+                id="confirm"
+                type="password"
+                autoComplete="new-password"
+                value={confirm}
+                onChange={(e) => setConfirm(e.target.value)}
+                required
+                minLength={8}
+              />
+            </div>
+
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? "Resetting..." : "Reset Password"}
+            </Button>
+          </form>
+        </CardContent>
+
+        <CardFooter>
+          <Button variant="link" className="px-0" asChild>
+            <Link href="/login">Back to Login</Link>
+          </Button>
+        </CardFooter>
+      </Card>
     </div>
   );
 }
