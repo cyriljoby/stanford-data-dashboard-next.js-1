@@ -56,26 +56,52 @@ const authorizeRoute = async (
   }
 
   const restrictedRoutes: Record<string, string[]> = {
-    stanford: ["/dashboard", "/createLocation", "/pendingLocation"],
-    admin: [
-      "/dashboard",
-      "/selectUserLocation",
+    stanford: [
       "/createLocation",
+      "/dashboard/home",
       "/pendingLocation",
+      "/selectUserLocation",
+    ],
+    admin: [
+      "/createLocation",
+      "/dashboard/home",
       "/dashboard/manageForms",
       "/dashboard/manageLocations",
+      "/pendingLocation",
+      "/selectUserLocation/[id]",
+      "/selectUserLocation"
     ],
     siteAndTeacher: [
-      "/selectUserLocation",
       "/createLocation",
-      "/pendingLocation",
       "/dashboard/manageForms",
       "/dashboard/manageLocations",
+      "/pendingLocation",
+      "/selectUserLocation",
+      "/selectUserLocation/[id]",
     ],
-    teacher: ["/dashboard/manageForms", "/dashboard/manageLocations"],
+    teacher: [
+      "/dashboard/manageForms",
+      "/dashboard/manageLocations",
+      "/selectUserLocation/[id]",
+    ],
   };
 
-  if (restrictedRoutes[roleClassification].includes(pathname)) {
+  // Check if path is restricted for this role
+  const isRestricted = restrictedRoutes[roleClassification].some((route) => {
+    // Handle dynamic routes with [id]
+    if (route.includes("[id]")) {
+      const pattern = route.replace("[id]", "");
+      return pathname.startsWith(pattern) && pathname !== pattern;
+    }
+    // Handle prefix matching for routes like /dashboard/manageForms
+    if (route.endsWith("/manageForms") || route.endsWith("/manageLocations")) {
+      return pathname.startsWith(route);
+    }
+    // Exact match for other routes
+    return pathname === route;
+  });
+
+  if (isRestricted) {
     return NextResponse.redirect(new URL(redirect, request.url));
   }
 };
