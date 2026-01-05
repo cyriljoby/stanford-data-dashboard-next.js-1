@@ -178,6 +178,29 @@ export async function GET(request: NextRequest) {
       return formTitle.replace(/\s+\d{4}$/, "");
     }
 
+    // Map long form names to shorter, readable sheet names
+    const formNameMap: Record<string, string> = {
+      "Healthy Futures: Cannabis": "HF Cannabis",
+      "Healthy Futures: Tobacco/Nicotine/Vaping": "HF Tobacco",
+      "Safety First": "Safety First",
+      "Smart Talk: Cannabis Prevention & Education Awareness": "Smart Talk Cannabis",
+      "Smart Talk: Cannabis Prevention & Education Awareness(elem)": "Smart Talk Cannabis Elem",
+      "You and Me Vape Free (middle school and above)": "You & Me Vape Free MS+",
+      "You and Me, Together Vape-Free(elem)": "You & Me Vape Free Elem",
+    };
+
+    // Sanitize sheet name to remove Excel-disallowed characters
+    function sanitizeSheetName(name: string): string {
+      // Excel disallows: \ / ? * [ ] :
+      // Replace them with underscores
+      return name.replace(/[\\\/\?\*\[\]:]/g, "_");
+    }
+
+    // Shorten form name using mapping, fallback to truncation
+    function shortenFormName(name: string): string {
+      return formNameMap[name] || name;
+    }
+
     // Fast date formatter (much faster than toLocaleString)
     function formatDate(date: Date): string {
       const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -262,10 +285,12 @@ export async function GET(request: NextRequest) {
         });
       }
 
-      const sheet = workbook.addWorksheet(baseFormName.slice(0, 31));
+      const shortName = shortenFormName(baseFormName);
+      const sanitizedName = sanitizeSheetName(shortName).slice(0, 31);
+      const sheet = workbook.addWorksheet(sanitizedName);
       sheet.columns = columns;
       sheets.set(baseFormName, sheet);
-      console.log(`Created sheet "${baseFormName}" with columns for years: ${sortedYears.join(", ")}`);
+      console.log(`Created sheet "${sanitizedName}" (from "${baseFormName}") with columns for years: ${sortedYears.join(", ")}`);
     }
 
     // ------------------------------
@@ -357,9 +382,9 @@ export async function GET(request: NextRequest) {
 
         // Log rows with no answer data
         if (!hasAnswerData) {
-          console.warn(
-            `⚠️  Row with no answer data - Response ID: ${r.id}, Form: ${form.title}, Teacher: ${r.teacher.email}`
-          );
+          // console.warn(
+          //   `⚠️  Row with no answer data - Response ID: ${r.id}, Form: ${form.title}, Teacher: ${r.teacher.email}`
+          // );
         }
 
         // Collect row instead of writing immediately
