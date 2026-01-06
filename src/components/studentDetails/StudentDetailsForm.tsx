@@ -17,11 +17,24 @@ const StudentDetailsForm = ({
   formType: Form["type"];
   routeParams: { formId: string; teacherId: string; name: string };
 }) => {
-  const grades = Array.from({ length: 12 }, (_, i) => {
-    return { text: (i + 1).toString(), value: (i + 1).toString() };
-  });
+  // Check if this is an elementary form
+  const isElemForm = formTitle.toLowerCase().includes("(elem)");
+
+  // For elementary forms: K-5, for others: K-12 + college
+  const grades = isElemForm
+    ? Array.from({ length: 5 }, (_, i) => {
+        return { text: (i + 1).toString(), value: (i + 1).toString() };
+      })
+    : Array.from({ length: 12 }, (_, i) => {
+        return { text: (i + 1).toString(), value: (i + 1).toString() };
+      });
+
   grades.unshift({ text: "k", value: "k" });
-  grades.push({ text: "college or above", value: "college or above" });
+
+  // Only add "college or above" for non-elem forms
+  if (!isElemForm) {
+    grades.push({ text: "college or above", value: "college or above" });
+  }
 
   const formOptions = [{ text: formTitle, value: formTitle }];
 

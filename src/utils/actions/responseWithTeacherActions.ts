@@ -48,7 +48,7 @@ export const createResponseWithTeacher = async (
     }
 
     const validQuestionIds = new Set(
-      form.questions.map((question) => question.id)
+      form.questions.map((question: { id: string }) => question.id)
     );
     response.answers = response.answers.filter((answer) =>
       validQuestionIds.has(answer.questionId)
@@ -88,9 +88,14 @@ export const createResponseWithTeacher = async (
       },
     });
 
+    // Add certificate and teacher parameters if form requires certificate
+    const params = form.provideCertificate
+      ? `?certificate=true&teacherId=${teacher.id}&teacherEmail=${encodeURIComponent(teacher.email)}&teacherName=${encodeURIComponent(teacher.name)}`
+      : "";
+
     return {
       message: "Successfully submitted form",
-      redirect: `/student/submissionSuccess/${form.title}`,
+      redirect: `/student/submissionSuccess/${form.title}${params}`,
     };
   } catch (error) {
     return renderError(error);

@@ -179,9 +179,64 @@ export const getSingleActiveForm = async (formId: string) => {
   return redirect("/");
 };
 
-export const emailCertificate = async () => {
+export const emailCertificate = async (
+  prevState: any,
+  formData: FormData
+) => {
   try {
-    return { message: "Successfully emailed certificate" };
+    const studentName = formData.get("name") as string;
+    const studentEmail = formData.get("email") as string;
+    const formTitle = formData.get("formTitle") as string;
+    const teacherEmail = formData.get("teacherEmail") as string;
+    const teacherName = formData.get("teacherName") as string;
+
+    if (!studentName || !teacherEmail || !teacherName || !formTitle) {
+      throw Error("Missing required fields");
+    }
+
+    // Generate certificate PDF
+    const { generateCertificate } = await import(
+      "../certificate/generate"
+    );
+
+    const certificatePdf = await generateCertificate({
+      studentName,
+      formTitle,
+      completionDate: new Date(),
+    });
+
+    // Import the email function
+    const { sendFormCompletionEmail } = await import(
+      "../email/certificate-email"
+    );
+
+    // Send notification to teacher with certificate attached
+    await sendFormCompletionEmail(
+      teacherEmail,
+      teacherName,
+      formTitle,
+      new Date(),
+      studentName,
+      certificatePdf
+    );
+
+    // Send certificate to student email if provided
+    if (studentEmail) {
+      await sendFormCompletionEmail(
+        studentEmail,
+        studentName,
+        formTitle,
+        new Date(),
+        studentName,
+        certificatePdf
+      );
+    }
+
+    // Return success with PDF data for display
+    return {
+      message: "Successfully sent notifications",
+      certificateUrl: `data:application/pdf;base64,${certificatePdf.toString("base64")}`,
+    };
   } catch (error) {
     return renderError(error);
   }
