@@ -124,6 +124,10 @@ model ResponseWithoutTeacher {
   grade String
   answers Answer[]
   createdAt DateTime @default(now())
+
+  @@index([locationId, id])
+  @@index([locationId, createdAt])
+  @@index([formId])
 }
 
 model PasswordResetToken {

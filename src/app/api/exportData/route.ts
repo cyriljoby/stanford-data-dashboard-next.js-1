@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
     console.timeEnd("DB_LOCATIONS");
 
     const userLocationIds = userLocations.map((l) => l.id);
-    console.log(`Matched Locations: ${userLocationIds.length}`);
+    console.log(`Matched UserLocations: ${userLocationIds.length}`);
 
     if (userLocationIds.length === 0) {
       return NextResponse.json(
@@ -220,83 +220,110 @@ export async function GET(request: NextRequest) {
     // ------------------------------
     console.log("Pre-building sheets with all question columns...");
 
-    // Group forms by base name and track questions by year
-    const formGroups = new Map<string, Map<string, any[]>>();
+    // Track column mappings: formGroupKey -> columnKey -> question IDs
+    // This allows multiple question IDs to map to the same column (for pre/post with same question names)
+    const columnMappings = new Map<string, Map<string, string[]>>();
+
+    // Group forms by base name only (NOT type) - combine pre/post together
+    const formGroups = new Map<string, any[]>();
 
     for (const form of allForms) {
       const baseFormName = getBaseFormName(form.title);
+      const formGroupKey = baseFormName; // No type suffix - combine pre/post
 
-      // Extract year from form title (e.g., "Form 2023" -> "2023")
-      const yearMatch = form.title.match(/\s(\d{4})$/);
-      const year = yearMatch ? yearMatch[1] : "unknown";
-
-      if (!formGroups.has(baseFormName)) {
-        formGroups.set(baseFormName, new Map());
+      if (!formGroups.has(formGroupKey)) {
+        formGroups.set(formGroupKey, []);
       }
 
-      const yearMap = formGroups.get(baseFormName)!;
-      if (!yearMap.has(year)) {
-        yearMap.set(year, []);
-      }
-
-      yearMap.get(year)!.push(form);
+      formGroups.get(formGroupKey)!.push(form);
     }
 
-    // Create sheets with year-separated columns
-    for (const [baseFormName, yearMap] of formGroups.entries()) {
+    // Create sheets with deduplicated columns
+    for (const [baseFormName, forms] of formGroups.entries()) {
       const columns: any[] = [
-        { header: "Response ID", key: "responseId", width: 30 },
-        { header: "Form Title", key: "formTitle", width: 25 },
-        { header: "Form Type", key: "formType", width: 10 },
-        { header: "Teacher Name", key: "teacherName", width: 25 },
-        { header: "Teacher Email", key: "teacherEmail", width: 30 },
-        { header: "Grade", key: "grade", width: 10 },
-        { header: "Period", key: "period", width: 10 },
-        { header: "State", key: "state", width: 15 },
-        { header: "County", key: "county", width: 20 },
-        { header: "District", key: "district", width: 25 },
-        { header: "City", key: "city", width: 15 },
-        { header: "School", key: "school", width: 30 },
-        { header: "Created At", key: "createdAt", width: 22 },
+        { header: "response_id", key: "responseId", width: 30 },
+        { header: "form_title", key: "formTitle", width: 25 },
+        { header: "form_type", key: "formType", width: 10 },
+        { header: "teacher_name", key: "teacherName", width: 25 },
+        { header: "teacher_email", key: "teacherEmail", width: 30 },
+        { header: "grade", key: "grade", width: 10 },
+        { header: "period", key: "period", width: 10 },
+        { header: "state", key: "state", width: 15 },
+        { header: "county", key: "county", width: 20 },
+        { header: "district", key: "district", width: 25 },
+        { header: "city", key: "city", width: 15 },
+        { header: "school", key: "school", width: 30 },
+        { header: "created_at", key: "createdAt", width: 22 },
       ];
 
-      // Sort years chronologically (2023, 2024, etc.)
-      const sortedYears = Array.from(yearMap.keys()).sort();
+      // Collect ALL questions from all forms in this group (pre, post, all years)
+      const allQuestions: Array<{ id: string; name: string; formTitle: string; formType: string }> = [];
 
-      // Add columns for each year separately
-      for (const year of sortedYears) {
-        const forms = yearMap.get(year)!;
-        // Use first form's questions as template for this year
-        const form = forms[0];
-
-        form.questions.forEach((q: any) => {
-          if (q.showInTeacherExport) {
-            const headerName = q.name ?? q.question;
-            const label = headerName.length > 70 ? headerName.slice(0, 67) + "..." : headerName;
-            // Only add year suffix if multiple years exist AND year is not "unknown" (current form)
-            const yearSuffix = sortedYears.length > 1 && year !== "unknown" ? ` (${year})` : "";
-
-            columns.push({
-              header: `${label}${yearSuffix}`,
-              key: `q_${q.id}`,
-              width: 40,
+      for (const form of forms) {
+        for (const q of form.questions) {
+          if ((q as any).showInTeacherExport) {
+            allQuestions.push({
+              id: (q as any).id,
+              name: (q as any).name ?? (q as any).question,
+              formTitle: form.title,
+              formType: form.type,
             });
           }
+        }
+      }
+
+      // Deduplicate by question name - group question IDs by their display name
+      const questionsByName = new Map<string, Array<{ id: string; formTitle: string; formType: string }>>();
+
+      for (const q of allQuestions) {
+        if (!questionsByName.has(q.name)) {
+          questionsByName.set(q.name, []);
+        }
+
+        // Only add if this question ID isn't already in the list
+        const existing = questionsByName.get(q.name)!;
+        if (!existing.find(e => e.id === q.id)) {
+          existing.push({ id: q.id, formTitle: q.formTitle, formType: q.formType });
+        }
+      }
+
+      // Create column mapping for this sheet
+      const columnMapping = new Map<string, string[]>();
+
+      // Create columns for unique question names
+      for (const [questionName, questionInfos] of questionsByName.entries()) {
+        const label = questionName.length > 70 ? questionName.slice(0, 67) + "..." : questionName;
+
+        // Use first question's ID as the column key
+        const columnKey = `q_${questionInfos[0].id}`;
+
+        // Track all question IDs that map to this column
+        const questionIds = questionInfos.map(qi => qi.id);
+        columnMapping.set(columnKey, questionIds);
+
+        columns.push({
+          header: label,
+          key: columnKey,
+          width: 40,
         });
       }
+
+      // Store column mapping for later use when filling rows
+      columnMappings.set(baseFormName, columnMapping);
 
       const shortName = shortenFormName(baseFormName);
       const sanitizedName = sanitizeSheetName(shortName).slice(0, 31);
       const sheet = workbook.addWorksheet(sanitizedName);
       sheet.columns = columns;
       sheets.set(baseFormName, sheet);
-      console.log(`Created sheet "${sanitizedName}" (from "${baseFormName}") with columns for years: ${sortedYears.join(", ")}`);
+
+      console.log(`Created sheet "${sanitizedName}" (from "${baseFormName}") with ${columns.length - 13} question columns (${allQuestions.length} total questions, ${questionsByName.size} unique)`);
     }
 
     // ------------------------------
     // 4) Batch Stream Response Data
     // ------------------------------
-    const batchSize = 10000; // Increased from 5000
+    const batchSize = 10000;
     let lastId: string | undefined = undefined;
     let totalCount = 0;
     let batchIndex = 0;
@@ -307,9 +334,10 @@ export async function GET(request: NextRequest) {
       sheetRows.set(baseFormName, []);
     }
 
-    console.log(" Starting batch streaming...");
+    console.log("Starting batch streaming...");
     while (true) {
       console.time(`DB_BATCH_${batchIndex}`);
+
       const batch: any[] = await prisma.responseWithTeacher.findMany({
         where: whereResponses,
         select: {
@@ -331,25 +359,28 @@ export async function GET(request: NextRequest) {
           },
         },
         take: batchSize,
-        ...(lastId && { cursor: { id: lastId }, skip: 1 }),
+        ...(lastId ? { cursor: { id: lastId }, skip: 1 } : {}),
         orderBy: { id: "asc" },
       });
+
       console.timeEnd(`DB_BATCH_${batchIndex}`);
 
       if (batch.length === 0) break;
 
       totalCount += batch.length;
-      console.log(
-        `Batch #${batchIndex} size: ${batch.length} (Total: ${totalCount})`
-      );
+      console.log(`Batch #${batchIndex}: ${batch.length} responses (Total: ${totalCount})`);
 
-      lastId = batch[batch.length - 1].id;
+      if (batch.length > 0) {
+        lastId = batch[batch.length - 1].id;
+      }
 
       for (const r of batch) {
         const form: any = formCache.get(r.formId);
-        if (!form) continue; // Skip if form not found in cache
+        if (!form) continue;
 
         const baseFormName = getBaseFormName(form.title);
+        const formGroupKey = baseFormName;
+
         const answerMap = new Map(
           r.answers.map((a: any) => [a.questionId, a.optionCode])
         );
@@ -370,25 +401,24 @@ export async function GET(request: NextRequest) {
           createdAt: formatDate(r.createdAt),
         };
 
-        // Fill answer data using question IDs (year-specific columns)
-        let hasAnswerData = false;
-        for (const q of form.questions) {
-          if (q.showInTeacherExport) {
-            const answer = answerMap.get(q.id) ?? "";
-            row[`q_${q.id}`] = answer;
-            if (answer !== "") hasAnswerData = true;
+        // Fill answer data using the column mapping
+        const columnMapping = columnMappings.get(formGroupKey);
+
+        if (columnMapping) {
+          for (const [columnKey, questionIds] of columnMapping.entries()) {
+            let answer = "";
+            for (const qId of questionIds) {
+              const foundAnswer = answerMap.get(qId);
+              if (foundAnswer !== undefined && foundAnswer !== null) {
+                answer = String(foundAnswer);
+                break;
+              }
+            }
+            row[columnKey] = answer;
           }
         }
 
-        // Log rows with no answer data
-        if (!hasAnswerData) {
-          // console.warn(
-          //   `⚠️  Row with no answer data - Response ID: ${r.id}, Form: ${form.title}, Teacher: ${r.teacher.email}`
-          // );
-        }
-
-        // Collect row instead of writing immediately
-        sheetRows.get(baseFormName)?.push(row);
+        sheetRows.get(formGroupKey)?.push(row);
       }
 
       batchIndex++;
@@ -399,17 +429,22 @@ export async function GET(request: NextRequest) {
 
     // Sort and write rows for each sheet
     for (const [baseFormName, rows] of sheetRows.entries()) {
-      // Sort by year first (2023, 2024, etc.), then by form title
+      // Sort by year first, then pre before post, then form title
       rows.sort((a, b) => {
+        // Compare years first (2023, 2024, then unknown/"9999")
         const yearA = a.formTitle.match(/\s(\d{4})$/)?.[1] || "9999";
         const yearB = b.formTitle.match(/\s(\d{4})$/)?.[1] || "9999";
 
-        // Compare years first
         if (yearA !== yearB) {
           return yearA.localeCompare(yearB);
         }
 
-        // If same year, compare by form title
+        // If same year, compare type (pre before post)
+        if (a.formType !== b.formType) {
+          return a.formType === "pre" ? -1 : 1;
+        }
+
+        // If same year and type, compare by form title
         return a.formTitle.localeCompare(b.formTitle);
       });
 
