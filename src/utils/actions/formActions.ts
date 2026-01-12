@@ -1,5 +1,4 @@
 "use server";
-// test comment
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "../db";
