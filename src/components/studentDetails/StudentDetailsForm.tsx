@@ -11,32 +11,58 @@ const StudentDetailsForm = ({
   formTitle,
   formType,
   routeParams,
+  allForms,
 }: {
   teacherLocations: UserLocation[];
   formTitle: string;
   formType: Form["type"];
   routeParams: { formId: string; teacherId: string; name: string };
+  allForms?: Form[];
 }) => {
-  // Check if this is an elementary form
-  const isElemForm = formTitle.toLowerCase().includes("(elem)");
+  // Map forms that have different base names for elem vs middle school versions
+  const FORM_PAIRS: Record<string, { elem: string; middleSchool: string }> = {
+    "vape-free": {
+      elem: "You and Me, Together Vape-Free(elem)",
+      middleSchool: "You and Me Vape Free (middle school and above)",
+    },
+    "smart-talk": {
+      elem: "Smart Talk: Cannabis Prevention & Education Awareness(elem)",
+      middleSchool: "Smart Talk: Cannabis Prevention & Education Awareness",
+    },
+  };
 
-  // For elementary forms: K-5, for others: K-12 + college
-  const grades = isElemForm
-    ? Array.from({ length: 5 }, (_, i) => {
-        return { text: (i + 1).toString(), value: (i + 1).toString() };
-      })
-    : Array.from({ length: 12 }, (_, i) => {
-        return { text: (i + 1).toString(), value: (i + 1).toString() };
-      });
+  // Strip version suffixes from form title for display
+  let baseFormName = formTitle
+    .replace(/\s*\(elem\)/i, "")
+    .replace(/\s*\(elementary\)/i, "")
+    .replace(/\s*\(middle school and above\)/i, "")
+    .trim();
 
-  grades.unshift({ text: "k", value: "k" });
+  // Check if this form has an explicit mapping - use the middle school name as display name
+  const pairKey = Object.keys(FORM_PAIRS).find(key => {
+    const pair = FORM_PAIRS[key];
+    return formTitle === pair.elem || formTitle === pair.middleSchool;
+  });
 
-  // Only add "college or above" for non-elem forms
-  if (!isElemForm) {
-    grades.push({ text: "college or above", value: "college or above" });
+  if (pairKey) {
+    // Use the middle school version's base name for display
+    baseFormName = FORM_PAIRS[pairKey].middleSchool
+      .replace(/\s*\(middle school and above\)/i, "")
+      .trim();
   }
 
-  const formOptions = [{ text: formTitle, value: formTitle }];
+  // Show all grades K-12 + college
+  // The form routing will happen automatically based on selected grade
+  const grades: { text: string; value: string }[] = Array.from({ length: 12 }, (_, i) => ({
+    text: (i + 1).toString(),
+    value: (i + 1).toString(),
+  }));
+  grades.unshift({ text: "k", value: "k" });
+  grades.push({ text: "college or above", value: "college or above" });
+
+  // Display base form name without (elem) or (middle school and above) suffix
+  const displayFormTitle = baseFormName;
+  const formOptions = [{ text: displayFormTitle, value: displayFormTitle }];
 
   console.log(teacherLocations);
 
@@ -50,15 +76,60 @@ const StudentDetailsForm = ({
 
     const formData = new FormData(e.currentTarget as HTMLFormElement);
     const data = Object.fromEntries(formData);
+    const selectedGrade = data.grade as string;
 
     const studentDetails = {
       locationId: data?.locationId,
       period: data?.period ?? "",
-      grade: data.grade,
+      grade: selectedGrade,
     };
 
     localStorage.setItem("studentDetails", JSON.stringify(studentDetails));
-    redirect(`/student/form/${routeParams.formId}/${routeParams.teacherId}`);
+
+    // Determine if we should route to elem or non-elem version based on grade
+    let targetFormId = routeParams.formId;
+
+    if (allForms && allForms.length > 0) {
+      // Check if grade is K-5 (elementary)
+      const isElemGrade = selectedGrade === "k" || (parseInt(selectedGrade) >= 1 && parseInt(selectedGrade) <= 5);
+
+      // First, check if this form has an explicit mapping
+      const pairKey = Object.keys(FORM_PAIRS).find(key => {
+        const pair = FORM_PAIRS[key];
+        return formTitle === pair.elem || formTitle === pair.middleSchool;
+      });
+      console.log(FORM_PAIRS, formTitle, pairKey)
+      if (pairKey) {
+        // Use explicit mapping
+        const targetTitle = isElemGrade ? FORM_PAIRS[pairKey].elem : FORM_PAIRS[pairKey].middleSchool;
+        const mappedForm = allForms.find(f => f.title === targetTitle && f.type === formType);
+        if (mappedForm) targetFormId = mappedForm.id;
+      } else {
+        // Fall back to dynamic matching based on naming convention
+        if (isElemGrade) {
+          // Look for elementary version
+          const elemForm = allForms.find(f => {
+            const fBase = f.title.replace(/\s*\(elem\)/i, "").replace(/\s*\(elementary\)/i, "").trim();
+            return (f.title.toLowerCase().includes("(elem)") || f.title.toLowerCase().includes("(elementary)")) &&
+                   fBase.toLowerCase() === baseFormName.toLowerCase() &&
+                   f.type === formType;
+          });
+          if (elemForm) targetFormId = elemForm.id;
+        } else {
+          // Look for non-elementary version (6-12+)
+          const nonElemForm = allForms.find(f => {
+            const fBase = f.title.replace(/\s*\(elem\)/i, "").replace(/\s*\(elementary\)/i, "").replace(/\s*\(middle school and above\)/i, "").trim();
+            return !f.title.toLowerCase().includes("(elem)") &&
+                   !f.title.toLowerCase().includes("(elementary)") &&
+                   fBase.toLowerCase() === baseFormName.toLowerCase() &&
+                   f.type === formType;
+          });
+          if (nonElemForm) targetFormId = nonElemForm.id;
+        }
+      }
+    }
+
+    redirect(`/student/form/${targetFormId}/${routeParams.teacherId}`);
   };
 
   return (
@@ -70,12 +141,13 @@ const StudentDetailsForm = ({
         name="grade"
         placeholder="select your grade"
         options={grades}
+        defaultValue=""
       />
       <SelectInput
         name="title"
         placeholder="select your form"
         options={formOptions}
-        defaultValue={formTitle}
+        defaultValue={displayFormTitle}
         disabled={true}
       />
       <SelectInput

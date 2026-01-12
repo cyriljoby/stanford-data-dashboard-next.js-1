@@ -1,6 +1,6 @@
 import StudentDetailsForm from "@/components/studentDetails/StudentDetailsForm";
 import { Card, CardContent } from "@/components/ui/card";
-import { getSingleActiveForm, getUserLocations } from "@/utils/actions";
+import { getSingleActiveForm, getUserLocations, getAllForms } from "@/utils/actions";
 import { UserLocation } from "@prisma/client";
 import Logo from "@/components/global/Logo";
 
@@ -15,6 +15,7 @@ const DetailsPage = async ({ params }: any) => {
     : `Please enter your grade to continue`;
 
   const form = await getSingleActiveForm(formId);
+  const allForms = await getAllForms();
   let teacherLocations: UserLocation[] = [];
   if (joinedWithTeacherCode) {
     teacherLocations = await getUserLocations(teacherId);
@@ -31,6 +32,7 @@ const DetailsPage = async ({ params }: any) => {
             formTitle={form.title}
             formType={form.type}
             routeParams={routeParams}
+            allForms={allForms}
           />
         </CardContent>
       </Card>
