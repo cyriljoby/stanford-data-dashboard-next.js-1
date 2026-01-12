@@ -35,16 +35,9 @@ const RedirectPage = async ({ params }: any) => {
   // Decode the URL-encoded formSlug
   const decodedFormSlug = decodeURIComponent(formSlug);
 
-  console.log('Received formSlug:', formSlug);
-  console.log('Decoded formSlug:', decodedFormSlug);
-  console.log('Received when:', when);
-  console.log('Available slugs:', Object.keys(SLUG_TO_FORM_TITLE));
-
   // Map slug to form title
   const baseFormTitle = SLUG_TO_FORM_TITLE[decodedFormSlug];
-  console.log('Mapped to baseFormTitle:', baseFormTitle);
   if (!baseFormTitle) {
-    console.log('No match found, redirecting to home');
     redirect("/");
   }
 
@@ -65,9 +58,6 @@ const RedirectPage = async ({ params }: any) => {
       title: true,
     },
   });
-
-  console.log('Looking for baseFormTitle:', baseFormTitle);
-  console.log('Available forms:', allForms.map((f: { id: string; title: string }) => f.title));
 
   // Check if this form has an explicit mapping - prefer middle school version
   const pairKey = Object.keys(FORM_PAIRS).find(key => {
@@ -97,9 +87,7 @@ const RedirectPage = async ({ params }: any) => {
     });
   }
 
-  console.log(matchingForm);
   if (!matchingForm) {
-    console.log('No matching form found');
     redirect("/");
   }
 

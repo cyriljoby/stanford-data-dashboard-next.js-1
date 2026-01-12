@@ -64,8 +64,6 @@ const StudentDetailsForm = ({
   const displayFormTitle = baseFormName;
   const formOptions = [{ text: displayFormTitle, value: displayFormTitle }];
 
-  console.log(teacherLocations);
-
   const types = [
     { text: "before lesson", value: "pre" },
     { text: "after lesson", value: "post" },
@@ -98,7 +96,7 @@ const StudentDetailsForm = ({
         const pair = FORM_PAIRS[key];
         return formTitle === pair.elem || formTitle === pair.middleSchool;
       });
-      console.log(FORM_PAIRS, formTitle, pairKey)
+
       if (pairKey) {
         // Use explicit mapping
         const targetTitle = isElemGrade ? FORM_PAIRS[pairKey].elem : FORM_PAIRS[pairKey].middleSchool;
