@@ -1,4 +1,5 @@
 "use server";
+// test comment
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "../db";
@@ -179,10 +180,7 @@ export const getSingleActiveForm = async (formId: string) => {
   return redirect("/");
 };
 
-export const emailCertificate = async (
-  prevState: any,
-  formData: FormData
-) => {
+export const emailCertificate = async (prevState: any, formData: FormData) => {
   try {
     const studentName = formData.get("name") as string;
     const studentEmail = formData.get("email") as string;
@@ -195,9 +193,7 @@ export const emailCertificate = async (
     }
 
     // Generate certificate PDF
-    const { generateCertificate } = await import(
-      "../certificate/generate"
-    );
+    const { generateCertificate } = await import("../certificate/generate");
 
     const certificatePdf = await generateCertificate({
       studentName,
