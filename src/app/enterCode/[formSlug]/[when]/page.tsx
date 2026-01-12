@@ -1,33 +1,6 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/utils/db";
-
-// Map old slug names to current form titles (base names)
-const SLUG_TO_FORM_TITLE: Record<string, string> = {
-  VapeFree: "You and Me Vape Free",
-  SmartTalk: "Smart Talk: Cannabis Prevention & Education Awareness",
-  SafetyFirst: "Safety First",
-  "HealthyFutures:Cannabis": "Healthy Futures: Cannabis",
-  "HealthyFutures:Tobacco": "Healthy Futures: Tobacco/Nicotine/Vaping",
-};
-
-// Map forms that have different base names for elem vs middle school versions
-const FORM_PAIRS: Record<string, { elem: string; middleSchool: string }> = {
-  "vape-free": {
-    elem: "You and Me, Together Vape-Free(Elem)",
-    middleSchool: "You and Me Vape Free (Middle School And Above)",
-  },
-  "smart-talk": {
-    elem: "Smart Talk: Cannabis Prevention & Education Awareness(elem)",
-    middleSchool: "Smart Talk: Cannabis Prevention & Education Awareness",
-  },
-  // Add more mappings here as needed for forms with different base names
-};
-
-// Map old when parameter to new type
-const WHEN_TO_TYPE: Record<string, "pre" | "post"> = {
-  before: "pre",
-  after: "post",
-};
+import { FORM_PAIRS, SLUG_TO_FORM_TITLE, WHEN_TO_TYPE } from "@/config/formMappings";
 
 const RedirectPage = async ({ params }: any) => {
   const { formSlug, when } = await params;
@@ -71,8 +44,10 @@ const RedirectPage = async ({ params }: any) => {
 
   let matchingForm;
   if (pairKey) {
-    // Use the middle school version for forms with explicit mappings
-    matchingForm = allForms.find((f: { id: string; title: string }) => f.title === FORM_PAIRS[pairKey].middleSchool);
+    // Use the middle school version for forms with explicit mappings (case-insensitive)
+    matchingForm = allForms.find((f: { id: string; title: string }) =>
+      f.title.toLowerCase() === FORM_PAIRS[pairKey].middleSchool.toLowerCase()
+    );
   } else {
     // Fall back to dynamic matching
     matchingForm = allForms.find((f: { id: string; title: string }) => {

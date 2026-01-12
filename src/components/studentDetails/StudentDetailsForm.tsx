@@ -5,6 +5,7 @@ import { Form, UserLocation } from "@prisma/client";
 import SchoolAndPeriodInput from "./SchoolAndPeriodInput";
 import { SubmitButton } from "../form/Buttons";
 import { redirect } from "next/navigation";
+import { FORM_PAIRS } from "@/config/formMappings";
 
 const StudentDetailsForm = ({
   teacherLocations,
@@ -19,18 +20,6 @@ const StudentDetailsForm = ({
   routeParams: { formId: string; teacherId: string; name: string };
   allForms?: Form[];
 }) => {
-  // Map forms that have different base names for elem vs middle school versions
-  const FORM_PAIRS: Record<string, { elem: string; middleSchool: string }> = {
-    "vape-free": {
-      elem: "You and Me, Together Vape-Free(elem)",
-      middleSchool: "You and Me Vape Free (middle school and above)",
-    },
-    "smart-talk": {
-      elem: "Smart Talk: Cannabis Prevention & Education Awareness(elem)",
-      middleSchool: "Smart Talk: Cannabis Prevention & Education Awareness",
-    },
-  };
-
   // Strip version suffixes from form title for display
   let baseFormName = formTitle
     .replace(/\s*\(elem\)/i, "")
@@ -91,16 +80,19 @@ const StudentDetailsForm = ({
       // Check if grade is K-5 (elementary)
       const isElemGrade = selectedGrade === "k" || (parseInt(selectedGrade) >= 1 && parseInt(selectedGrade) <= 5);
 
-      // First, check if this form has an explicit mapping
+      // First, check if this form has an explicit mapping (case-insensitive)
       const pairKey = Object.keys(FORM_PAIRS).find(key => {
         const pair = FORM_PAIRS[key];
-        return formTitle === pair.elem || formTitle === pair.middleSchool;
+        return formTitle.toLowerCase() === pair.elem.toLowerCase() ||
+               formTitle.toLowerCase() === pair.middleSchool.toLowerCase();
       });
 
       if (pairKey) {
-        // Use explicit mapping
+        // Use explicit mapping (case-insensitive)
         const targetTitle = isElemGrade ? FORM_PAIRS[pairKey].elem : FORM_PAIRS[pairKey].middleSchool;
-        const mappedForm = allForms.find(f => f.title === targetTitle && f.type === formType);
+        const mappedForm = allForms.find(f =>
+          f.title.toLowerCase() === targetTitle.toLowerCase() && f.type === formType
+        );
         if (mappedForm) targetFormId = mappedForm.id;
       } else {
         // Fall back to dynamic matching based on naming convention
