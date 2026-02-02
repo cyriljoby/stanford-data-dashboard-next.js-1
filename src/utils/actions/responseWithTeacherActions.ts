@@ -95,7 +95,7 @@ export const createResponseWithTeacher = async (
 
     return {
       message: "Successfully submitted form",
-      redirect: `/student/submissionSuccess/${form.title}${params}`,
+      redirect: `/student/submissionSuccess/${encodeURIComponent(form.title)}${params}`,
     };
   } catch (error) {
     return renderError(error);
