@@ -63,7 +63,7 @@ const TeacherMetricsFilters = ({
   };
 
   const onlyUnitedStates = teacherLocations.every(
-    (location) => location.country === "United States"
+    (location) => location.country === "UNITED STATES"
   );
   const oneLocation = teacherLocations.length === 1;
   useEffect(() => {
@@ -96,19 +96,19 @@ const TeacherMetricsFilters = ({
     if (onlyUnitedStates) {
       setLocation((prev) => ({
         ...prev,
-        country: "United States",
+        country: "UNITED STATES",
       }));
     }
   }, [teacherLocations]);
 
-  const isUSA = location.country === "United States";
+  const isUSA = location.country === "UNITED STATES";
   const countries = [
     ...new Set(teacherLocations.map((location) => location.country)),
   ];
   const states = [
     ...new Set(
       teacherLocations
-        .filter((t) => t.country === "United States")
+        .filter((t) => t.country === "UNITED STATES")
         .map((t) => t.state)
         .filter((state): state is string => state !== null)
     ),

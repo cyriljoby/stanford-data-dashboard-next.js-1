@@ -19,7 +19,7 @@ export const getRequiredLocationFields = ({
   role: Roles;
   isTeacher: boolean;
 }) => {
-  const isUSA = country === "United States";
+  const isUSA = country === "UNITED STATES";
 
   return {
     canAccessNonUS:

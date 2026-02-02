@@ -344,11 +344,11 @@ export const stanfordAddUserLocation = async (
 
     const { id: userId, role, isTeacher, name } = requestedUserLocation.user;
     if (
-      validatedFields.country !== "United States" &&
+      validatedFields.country !== "UNITED STATES" &&
       role !== Roles.site &&
       role !== Roles.teacher
     ) {
-      throw Error("This user's country must be 'United States'");
+      throw Error("This user's country must be 'UNITED STATES'");
     }
 
     const userLocation: UserLocationWithoutId = {

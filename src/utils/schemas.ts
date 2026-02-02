@@ -56,7 +56,7 @@ export const registerSchema = z
   .refine(
     (data) => {
       if (
-        data.country !== "United States" &&
+        data.country !== "UNITED STATES" &&
         !["teacher", "site", "site-teacher", "country"].includes(data.role)
       ) {
         return false;
@@ -65,7 +65,7 @@ export const registerSchema = z
       return true;
     },
     {
-      message: "Only certain roles allowed outside the United States",
+      message: "Only certain roles allowed outside the UNITED STATES",
       path: ["role"],
     }
   );
@@ -109,11 +109,11 @@ export const selectUserLocationSchema = z
       isTeacher: data.isTeacher,
     });
 
-    if (!canAccessNonUS && data.country !== "United States") {
+    if (!canAccessNonUS && data.country !== "UNITED STATES") {
       ctx.addIssue({
         path: ["country"],
         code: z.ZodIssueCode.custom,
-        message: "Only United States is allowed for your role",
+        message: "Only UNITED STATES is allowed for your role",
       });
     }
 
@@ -189,12 +189,12 @@ export const createLocationSchema = z
       .transform((val) => val === "true"),
   })
   .superRefine((data, ctx) => {
-    if (data.country === "United States") {
+    if (data.country === "UNITED STATES") {
       if (!data.state) {
         ctx.addIssue({
           path: ["state"],
           code: z.ZodIssueCode.custom,
-          message: "State is required for United States locations",
+          message: "State is required for UNITED STATES locations",
         });
       }
 
@@ -202,7 +202,7 @@ export const createLocationSchema = z
         ctx.addIssue({
           path: ["county"],
           code: z.ZodIssueCode.custom,
-          message: "County is required for United States locations",
+          message: "County is required for UNITED STATES locations",
         });
       }
 
@@ -210,7 +210,7 @@ export const createLocationSchema = z
         ctx.addIssue({
           path: ["district"],
           code: z.ZodIssueCode.custom,
-          message: "District is required for United States locations",
+          message: "District is required for UNITED STATES locations",
         });
       }
     }
@@ -320,11 +320,11 @@ export const stanfordSelectUserLocationSchema = z
     school: z.string().min(1, "School is a required field"),
   })
   .superRefine((data, ctx) => {
-    if (data.country === "United States" && !data.state) {
+    if (data.country === "UNITED STATES" && !data.state) {
       ctx.addIssue({
         path: ["state"],
         code: z.ZodIssueCode.custom,
-        message: "State is required for United States locations",
+        message: "State is required for UNITED STATES locations",
       });
     }
   });
@@ -392,11 +392,11 @@ export const createResponseWithoutTeacherSchema = z
     answers: z.array(AnswerSchema),
   })
   .superRefine((data, ctx) => {
-    if (data.location.country === "United States" && !data.location.state) {
+    if (data.location.country === "UNITED STATES" && !data.location.state) {
       ctx.addIssue({
         path: ["location", "state"],
         code: z.ZodIssueCode.custom,
-        message: "State is required for United States locations",
+        message: "State is required for UNITED STATES locations",
       });
     }
   });

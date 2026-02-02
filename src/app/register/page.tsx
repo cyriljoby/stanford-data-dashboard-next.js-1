@@ -20,7 +20,7 @@ import SelectRole from "@/components/register/SelectRole";
 import Logo from "@/components/global/Logo";
 
 const RegisterPage = () => {
-  const [country, setCountry] = useState("United States");
+  const [country, setCountry] = useState("UNITED STATES");
 
   return (
     <div className="grid h-lvh place-items-center">

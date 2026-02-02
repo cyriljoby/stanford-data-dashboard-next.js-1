@@ -23,7 +23,7 @@ const AdminMetricsFilters = ({
   forms: string[];
   firstResponseDate?: Date;
 }) => {
-  let isUSA = adminLocation?.country === "United States";
+  let isUSA = adminLocation?.country === "UNITED STATES";
   const fixedCountry = role != Roles.stanford;
   const fixedState = isUSA && fixedCountry && role != Roles.country;
   const fixedCounty = fixedState && role != Roles.state;
@@ -66,7 +66,7 @@ const AdminMetricsFilters = ({
   };
 
   const [location, setLocation] = useState({
-    country: fixedCountry ? (adminLocation?.country as string) : "All",
+    country: fixedCountry ? (adminLocation?.country as string) : "UNITED STATES",
     state: fixedState ? (adminLocation?.state as string) : "All",
     county: fixedCounty ? (adminLocation?.county as string) : "All",
     district: fixedDistrict ? (adminLocation?.district as string) : "All",
@@ -74,7 +74,7 @@ const AdminMetricsFilters = ({
     school: fixedCityAndSchool ? (adminLocation?.school as string) : "All",
   });
 
-  isUSA = location.country === "United States";
+  isUSA = location.country === "UNITED STATES";
 
   const [counties, setCounties] = useState<string[]>([]);
   const [districts, setDistricts] = useState<string[]>([]);

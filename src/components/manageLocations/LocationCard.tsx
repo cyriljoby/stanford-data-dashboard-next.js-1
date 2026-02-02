@@ -5,7 +5,7 @@ import { UserLocationWithUser } from "@/utils/types";
 import LocationCardBtns from "./LocationCardBtns";
 
 const LocationCard = ({ location }: { location: UserLocationWithUser }) => {
-  const isUSA = location.country === "United States";
+  const isUSA = location.country === "UNITED STATES";
 
   return (
     <Card className="mb-5">

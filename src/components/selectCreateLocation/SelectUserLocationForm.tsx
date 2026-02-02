@@ -31,7 +31,7 @@ const SelectUserLocationForm = ({
   storeLocallyOnly?: boolean;
 }) => {
   const [userLocation, setUserLocation] = useState({
-    country: "United States",
+    country: "UNITED STATES",
     state: "",
     county: "",
     city: "",
@@ -56,7 +56,7 @@ const SelectUserLocationForm = ({
     locationId ? selectedUserCanAccessNonUS : canAccessNonUS
   )
     ? countries
-    : ["United States"];
+    : ["UNITED STATES"];
 
   const [counties, setCounties] = useState<string[]>([]);
   const [cities, setCities] = useState<string[]>([]);
@@ -168,7 +168,7 @@ const SelectUserLocationForm = ({
       !userLocation.country ||
       !userLocation.city ||
       !userLocation.school ||
-      (userLocation.country === "United States" && !userLocation.state)
+      (userLocation.country === "UNITED STATES" && !userLocation.state)
     ) {
       toast.error("Please fill out all required location fields");
       return;

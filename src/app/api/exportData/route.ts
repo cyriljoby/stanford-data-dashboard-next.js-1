@@ -41,21 +41,43 @@ export async function GET(request: NextRequest) {
       });
 
       if (adminLocation) {
-        // Enforce location constraints based on admin level
-        whereLocation.country = adminLocation.country;
+        // Enforce location constraints based on admin level (case-insensitive)
+        whereLocation.country = {
+          equals: adminLocation.country,
+          mode: "insensitive",
+        };
 
         if (role !== "country" && adminLocation.state) {
-          whereLocation.state = adminLocation.state;
+          whereLocation.state = {
+            equals: adminLocation.state,
+            mode: "insensitive",
+          };
         }
         if (role === "county" || role === "district" || role === "site") {
-          if (adminLocation.county) whereLocation.county = adminLocation.county;
+          if (adminLocation.county)
+            whereLocation.county = {
+              equals: adminLocation.county,
+              mode: "insensitive",
+            };
         }
         if (role === "district" || role === "site") {
-          if (adminLocation.district) whereLocation.district = adminLocation.district;
+          if (adminLocation.district)
+            whereLocation.district = {
+              equals: adminLocation.district,
+              mode: "insensitive",
+            };
         }
         if (role === "site") {
-          if (adminLocation.city) whereLocation.city = adminLocation.city;
-          if (adminLocation.school) whereLocation.school = adminLocation.school;
+          if (adminLocation.city)
+            whereLocation.city = {
+              equals: adminLocation.city,
+              mode: "insensitive",
+            };
+          if (adminLocation.school)
+            whereLocation.school = {
+              equals: adminLocation.school,
+              mode: "insensitive",
+            };
         }
       }
     }
@@ -70,10 +92,11 @@ export async function GET(request: NextRequest) {
     ];
 
     // Apply user-selected filters (but can't override admin restrictions above)
+    // Use case-insensitive matching for location filters
     for (const key of filterKeys) {
       const val = get(key);
       if (val && val !== "All" && !whereLocation[key]) {
-        whereLocation[key] = val;
+        whereLocation[key] = { equals: val, mode: "insensitive" };
       }
     }
     console.log("Location filter:", whereLocation);
@@ -91,7 +114,7 @@ export async function GET(request: NextRequest) {
     if (userLocationIds.length === 0) {
       return NextResponse.json(
         { message: "No locations found" },
-        { status: 200 }
+        { status: 200 },
       );
     }
 
@@ -117,7 +140,7 @@ export async function GET(request: NextRequest) {
       if (matchingForms.length === 0) {
         return NextResponse.json(
           { error: `No forms found with title: ${form}` },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
@@ -183,9 +206,12 @@ export async function GET(request: NextRequest) {
       "Healthy Futures: Cannabis": "HF Cannabis",
       "Healthy Futures: Tobacco/Nicotine/Vaping": "HF Tobacco",
       "Safety First": "Safety First",
-      "Smart Talk: Cannabis Prevention & Education Awareness": "Smart Talk Cannabis",
-      "Smart Talk: Cannabis Prevention & Education Awareness(elem)": "Smart Talk Cannabis Elem",
-      "You and Me Vape Free (middle school and above)": "You & Me Vape Free MS+",
+      "Smart Talk: Cannabis Prevention & Education Awareness":
+        "Smart Talk Cannabis",
+      "Smart Talk: Cannabis Prevention & Education Awareness(elem)":
+        "Smart Talk Cannabis Elem",
+      "You and Me Vape Free (middle school and above)":
+        "You & Me Vape Free MS+",
       "You and Me, Together Vape-Free(elem)": "You & Me Vape Free Elem",
     };
 
@@ -257,7 +283,12 @@ export async function GET(request: NextRequest) {
       ];
 
       // Collect ALL questions from all forms in this group (pre, post, all years)
-      const allQuestions: Array<{ id: string; name: string; formTitle: string; formType: string }> = [];
+      const allQuestions: Array<{
+        id: string;
+        name: string;
+        formTitle: string;
+        formType: string;
+      }> = [];
 
       for (const form of forms) {
         for (const q of form.questions) {
@@ -273,7 +304,10 @@ export async function GET(request: NextRequest) {
       }
 
       // Deduplicate by question name - group question IDs by their display name
-      const questionsByName = new Map<string, Array<{ id: string; formTitle: string; formType: string }>>();
+      const questionsByName = new Map<
+        string,
+        Array<{ id: string; formTitle: string; formType: string }>
+      >();
 
       for (const q of allQuestions) {
         if (!questionsByName.has(q.name)) {
@@ -282,8 +316,12 @@ export async function GET(request: NextRequest) {
 
         // Only add if this question ID isn't already in the list
         const existing = questionsByName.get(q.name)!;
-        if (!existing.find(e => e.id === q.id)) {
-          existing.push({ id: q.id, formTitle: q.formTitle, formType: q.formType });
+        if (!existing.find((e) => e.id === q.id)) {
+          existing.push({
+            id: q.id,
+            formTitle: q.formTitle,
+            formType: q.formType,
+          });
         }
       }
 
@@ -292,13 +330,16 @@ export async function GET(request: NextRequest) {
 
       // Create columns for unique question names
       for (const [questionName, questionInfos] of questionsByName.entries()) {
-        const label = questionName.length > 70 ? questionName.slice(0, 67) + "..." : questionName;
+        const label =
+          questionName.length > 70
+            ? questionName.slice(0, 67) + "..."
+            : questionName;
 
         // Use first question's ID as the column key
         const columnKey = `q_${questionInfos[0].id}`;
 
         // Track all question IDs that map to this column
-        const questionIds = questionInfos.map(qi => qi.id);
+        const questionIds = questionInfos.map((qi) => qi.id);
         columnMapping.set(columnKey, questionIds);
 
         columns.push({
@@ -317,7 +358,9 @@ export async function GET(request: NextRequest) {
       sheet.columns = columns;
       sheets.set(baseFormName, sheet);
 
-      console.log(`Created sheet "${sanitizedName}" (from "${baseFormName}") with ${columns.length - 13} question columns (${allQuestions.length} total questions, ${questionsByName.size} unique)`);
+      console.log(
+        `Created sheet "${sanitizedName}" (from "${baseFormName}") with ${columns.length - 13} question columns (${allQuestions.length} total questions, ${questionsByName.size} unique)`,
+      );
     }
 
     // ------------------------------
@@ -368,7 +411,9 @@ export async function GET(request: NextRequest) {
       if (batch.length === 0) break;
 
       totalCount += batch.length;
-      console.log(`Batch #${batchIndex}: ${batch.length} responses (Total: ${totalCount})`);
+      console.log(
+        `Batch #${batchIndex}: ${batch.length} responses (Total: ${totalCount})`,
+      );
 
       if (batch.length > 0) {
         lastId = batch[batch.length - 1].id;
@@ -382,7 +427,7 @@ export async function GET(request: NextRequest) {
         const formGroupKey = baseFormName;
 
         const answerMap = new Map(
-          r.answers.map((a: any) => [a.questionId, a.optionCode])
+          r.answers.map((a: any) => [a.questionId, a.optionCode]),
         );
 
         const row: any = {
@@ -391,7 +436,10 @@ export async function GET(request: NextRequest) {
           formType: form.type,
           teacherName: r.teacher.name,
           teacherEmail: r.teacher.email,
-          grade: r.grade,
+          grade:
+            r.grade !== null && r.grade !== undefined && r.grade !== ""
+              ? Number(r.grade)
+              : null,
           period: r.period ?? "",
           state: r.teacherLocation.state,
           county: r.teacherLocation.county,
@@ -406,14 +454,22 @@ export async function GET(request: NextRequest) {
 
         if (columnMapping) {
           for (const [columnKey, questionIds] of columnMapping.entries()) {
-            let answer = "";
+            let answer: number | null = null;
+
             for (const qId of questionIds) {
               const foundAnswer = answerMap.get(qId);
-              if (foundAnswer !== undefined && foundAnswer !== null) {
-                answer = String(foundAnswer);
+
+              if (
+                foundAnswer !== undefined &&
+                foundAnswer !== null &&
+                foundAnswer !== ""
+              ) {
+                const numeric = Number(foundAnswer);
+                answer = Number.isNaN(numeric) ? null : numeric;
                 break;
               }
             }
+
             row[columnKey] = answer;
           }
         }
@@ -479,7 +535,7 @@ export async function GET(request: NextRequest) {
     console.error("Export error:", err);
     return NextResponse.json(
       { error: "Failed to export data" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

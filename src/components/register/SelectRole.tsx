@@ -77,7 +77,7 @@ const SelectRole = ({ country }: { country: string }) => {
         <SelectGroup>
           <SelectLabel>Role</SelectLabel>
           {roleOptions.map((role) => {
-            if (country !== "United States" && !role.international) {
+            if (country !== "UNITED STATES" && !role.international) {
               return;
             }
 

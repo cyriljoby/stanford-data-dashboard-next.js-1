@@ -20,7 +20,7 @@ const CreateLocationForm = ({
   isTeacher: boolean;
 }) => {
   const [location, setLocation] = useState({
-    country: "United States",
+    country: "UNITED STATES",
     state: "",
     county: "",
     city: "",
@@ -32,7 +32,7 @@ const CreateLocationForm = ({
   const [districts, setDistricts] = useState<string[]>([]);
   const [cities, setCities] = useState<string[]>([]);
 
-  const isUSA = location.country === "United States";
+  const isUSA = location.country === "UNITED STATES";
 
   useEffect(() => {
     setLocation((prev) => ({
