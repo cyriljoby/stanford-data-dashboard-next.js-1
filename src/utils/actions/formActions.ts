@@ -181,22 +181,17 @@ export const getSingleActiveForm = async (formId: string) => {
 
 export const emailCertificate = async (prevState: any, formData: FormData) => {
   try {
-    console.log("DEBUG emailCertificate called");
     const studentName = formData.get("name") as string;
     const studentEmail = formData.get("email") as string;
     const formTitle = formData.get("formTitle") as string;
     const teacherEmail = formData.get("teacherEmail") as string;
     const teacherName = formData.get("teacherName") as string;
 
-    console.log("DEBUG emailCertificate params:", { studentName, studentEmail, formTitle, teacherEmail, teacherName });
-
     if (!studentName || !teacherEmail || !teacherName || !formTitle) {
-      console.log("DEBUG emailCertificate missing fields");
       throw Error("Missing required fields");
     }
 
     // Generate certificate PDF
-    console.log("DEBUG generating certificate...");
     const { generateCertificate } = await import("../certificate/generate");
 
     const certificatePdf = await generateCertificate({
@@ -204,7 +199,6 @@ export const emailCertificate = async (prevState: any, formData: FormData) => {
       formTitle,
       completionDate: new Date(),
     });
-    console.log("DEBUG certificate generated");
 
     // Import the email function
     const { sendFormCompletionEmail } = await import(
@@ -212,7 +206,6 @@ export const emailCertificate = async (prevState: any, formData: FormData) => {
     );
 
     // Send notification to teacher with certificate attached
-    console.log("DEBUG sending email to teacher:", teacherEmail);
     await sendFormCompletionEmail(
       teacherEmail,
       teacherName,
@@ -221,11 +214,9 @@ export const emailCertificate = async (prevState: any, formData: FormData) => {
       studentName,
       certificatePdf
     );
-    console.log("DEBUG email sent to teacher");
 
     // Send certificate to student email if provided
     if (studentEmail) {
-      console.log("DEBUG sending email to student:", studentEmail);
       await sendFormCompletionEmail(
         studentEmail,
         studentName,
@@ -234,17 +225,14 @@ export const emailCertificate = async (prevState: any, formData: FormData) => {
         studentName,
         certificatePdf
       );
-      console.log("DEBUG email sent to student");
     }
 
     // Return success with PDF data for display
-    console.log("DEBUG emailCertificate success");
     return {
       message: "Successfully sent notifications",
       certificateUrl: `data:application/pdf;base64,${certificatePdf.toString("base64")}`,
     };
   } catch (error) {
-    console.log("DEBUG emailCertificate error:", error);
     return renderError(error);
   }
 };

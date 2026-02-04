@@ -98,13 +98,9 @@ export const createResponseWithTeacher = async (
       queryParams.set("teacherName", teacher.name);
     }
 
-    const redirectUrl = `/student/submissionSuccess?${queryParams.toString()}`;
-    console.log("DEBUG responseWithTeacher: Response created successfully");
-    console.log("DEBUG responseWithTeacher: Returning redirect URL:", redirectUrl);
-
     return {
       message: "Successfully submitted form",
-      redirect: redirectUrl,
+      redirect: `/student/submissionSuccess?${queryParams.toString()}`,
     };
   } catch (error) {
     return renderError(error);
