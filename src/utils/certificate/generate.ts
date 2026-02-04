@@ -9,18 +9,23 @@ export interface CertificateData {
 }
 
 export async function generateCertificate(
-  data: CertificateData
+  data: CertificateData,
 ): Promise<Buffer> {
   // Create a new PDF document
   const pdfDoc = await PDFDocument.create();
 
-  // Load the certificate template image
-  const templatePath = path.join(
-    process.cwd(),
-    "public",
-    "StanfordReachLabHealthyFuturesCert.png"
-  );
-  const imageBytes = fs.readFileSync(templatePath);
+  const baseUrl = process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : "http://localhost:3000";
+
+  const templateUrl = `${baseUrl}/StanfordReachLabHealthyFuturesCert.png`;
+
+  const res = await fetch(templateUrl);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch certificate template: ${res.status}`);
+  }
+
+  const imageBytes = await res.arrayBuffer();
   const image = await pdfDoc.embedPng(imageBytes);
 
   // Get image dimensions
