@@ -12,10 +12,10 @@ import {
 } from "@/components/ui/card";
 import { emailCertificate } from "@/utils/actions";
 import { usePathname, useSearchParams } from "next/navigation";
-import React, { useEffect, useState } from "react";
+import React, { Suspense, useEffect, useState } from "react";
 import { useFormState } from "react-dom";
 
-const SubmissionSuccessPage = () => {
+const SubmissionSuccessContent = () => {
   const [certificateUrl, setCertificateUrl] = useState<string | null>(null);
 
   useEffect(() => {
@@ -92,6 +92,14 @@ const SubmissionSuccessPage = () => {
         </Card>
       )}
     </div>
+  );
+};
+
+const SubmissionSuccessPage = () => {
+  return (
+    <Suspense fallback={<div className="w-full mx-auto p-8 max-w-3xl">Loading...</div>}>
+      <SubmissionSuccessContent />
+    </Suspense>
   );
 };
 
