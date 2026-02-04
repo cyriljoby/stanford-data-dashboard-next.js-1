@@ -17,7 +17,7 @@ export async function generateCertificate(
     : "http://localhost:3000";
 
   const templateUrl = `${baseUrl}/StanfordReachLabHealthyFuturesCert.png`;
-
+  console.log(templateUrl);
   const res = await fetch(templateUrl);
   if (!res.ok) {
     throw new Error(`Failed to fetch certificate template: ${res.status}`);
