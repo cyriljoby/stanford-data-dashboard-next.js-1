@@ -23,7 +23,9 @@ const SubmissionSuccessPage = () => {
     localStorage.removeItem("studentDetails");
   }, []);
 
-  const title = decodeURIComponent(usePathname().split("/")[3]);
+  const pathname = usePathname();
+  // Join all path segments after /submissionSuccess/ to handle titles with slashes
+  const title = decodeURIComponent(pathname.split("/").slice(3).join("/"));
   const searchParams = useSearchParams();
   const showCertificate = searchParams.get("certificate") === "true";
   const teacherEmail = searchParams.get("teacherEmail") || "";
