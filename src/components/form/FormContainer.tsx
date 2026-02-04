@@ -2,8 +2,6 @@
 import { useActionState, useEffect } from "react";
 import { toast } from "sonner";
 import { actionFunction, actionReturn } from "@/utils/types";
-import { useRouter } from "next/navigation";
-
 const initialState: actionReturn = {
   message: "",
   errorMessage: false,
@@ -18,12 +16,22 @@ function FormContainer({
   children: React.ReactNode;
 }) {
   const [state, formAction] = useActionState(action, initialState);
-  const router = useRouter();
+
+  console.log("DEBUG FormContainer state:", state);
 
   useEffect(() => {
+    console.log("DEBUG FormContainer useEffect triggered, state:", state);
+
     if (state.redirect) {
       console.log("DEBUG FormContainer redirecting to:", state.redirect);
-      router.push(state.redirect);
+      console.log("DEBUG FormContainer current location:", window.location.href);
+      try {
+        window.location.href = state.redirect;
+        console.log("DEBUG FormContainer window.location.href set successfully");
+      } catch (e) {
+        console.error("DEBUG redirect error:", e);
+      }
+      return;
     }
 
     if (state.message) {

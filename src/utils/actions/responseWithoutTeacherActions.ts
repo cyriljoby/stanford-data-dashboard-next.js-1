@@ -81,9 +81,13 @@ export const createResponseWithoutTeacher = async (
       },
     });
 
+    const redirectUrl = `/student/submissionSuccess?title=${encodeURIComponent(form.title)}`;
+    console.log("DEBUG responseWithoutTeacher: Response created successfully");
+    console.log("DEBUG responseWithoutTeacher: Returning redirect URL:", redirectUrl);
+
     return {
       message: "Successfully submitted form",
-      redirect: `/student/submissionSuccess?title=${encodeURIComponent(form.title)}`,
+      redirect: redirectUrl,
     };
   } catch (error) {
     return renderError(error);
