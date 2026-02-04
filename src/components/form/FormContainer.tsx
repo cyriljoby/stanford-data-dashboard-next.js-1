@@ -22,6 +22,7 @@ function FormContainer({
 
   useEffect(() => {
     if (state.redirect) {
+      console.log("DEBUG FormContainer redirecting to:", state.redirect);
       router.push(state.redirect);
     }
 

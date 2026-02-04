@@ -88,14 +88,19 @@ export const createResponseWithTeacher = async (
       },
     });
 
-    // Add certificate and teacher parameters if form requires certificate
-    const params = form.provideCertificate
-      ? `?certificate=true&teacherId=${teacher.id}&teacherEmail=${encodeURIComponent(teacher.email)}&teacherName=${encodeURIComponent(teacher.name)}`
-      : "";
+    // Build query params including title (avoids path encoding issues with slashes)
+    const queryParams = new URLSearchParams({ title: form.title });
+
+    if (form.provideCertificate) {
+      queryParams.set("certificate", "true");
+      queryParams.set("teacherId", teacher.id);
+      queryParams.set("teacherEmail", teacher.email);
+      queryParams.set("teacherName", teacher.name);
+    }
 
     return {
       message: "Successfully submitted form",
-      redirect: `/student/submissionSuccess/${encodeURIComponent(form.title)}${params}`,
+      redirect: `/student/submissionSuccess?${queryParams.toString()}`,
     };
   } catch (error) {
     return renderError(error);

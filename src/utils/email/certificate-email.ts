@@ -31,13 +31,13 @@ export async function sendFormCompletionEmail(
   const studentText = studentName || "A student";
 
   const html = `
-    <p>Hello ${teacherName},</p>
+    <p>Hello ,</p>
     <p>${studentText} has completed ${formTitle} on ${today}.</p>
     ${certificatePdf ? "<p>Please find the certificate of completion attached.</p>" : ""}
     <p>Best regards,<br/>The REACH Lab Team</p>
   `;
 
-  const text = `Hello ${teacherName},\n\n${studentText} has completed ${formTitle} on ${today}.\n\n${certificatePdf ? "Please find the certificate of completion attached.\n\n" : ""}Best regards,\nThe REACH Lab Team`;
+  const text = `Hello,\n\n${studentText} has completed ${formTitle} on ${today}.\n\n${certificatePdf ? "Please find the certificate of completion attached.\n\n" : ""}Best regards,\nThe REACH Lab Team`;
 
   const mailOptions: any = {
     from: process.env.MAIL_FROM ?? `REACH Lab <${process.env.EMAIL}>`,

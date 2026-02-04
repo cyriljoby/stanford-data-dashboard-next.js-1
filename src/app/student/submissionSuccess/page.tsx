@@ -11,7 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { emailCertificate } from "@/utils/actions";
-import { usePathname, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import React, { Suspense, useEffect, useState } from "react";
 import { useFormState } from "react-dom";
 
@@ -23,19 +23,11 @@ const SubmissionSuccessContent = () => {
     localStorage.removeItem("studentDetails");
   }, []);
 
-  const pathname = usePathname();
-  // Join all path segments after /submissionSuccess/ to handle titles with slashes
-  const title = decodeURIComponent(pathname.split("/").slice(3).join("/"));
   const searchParams = useSearchParams();
+  const title = searchParams.get("title") || "";
   const showCertificate = searchParams.get("certificate") === "true";
   const teacherEmail = searchParams.get("teacherEmail") || "";
   const teacherName = searchParams.get("teacherName") || "";
-
-  console.log("DEBUG pathname:", pathname);
-  console.log("DEBUG title:", title);
-  console.log("DEBUG showCertificate:", showCertificate);
-  console.log("DEBUG teacherEmail:", teacherEmail);
-  console.log("DEBUG teacherName:", teacherName);
 
   const [state, formAction] = useFormState(emailCertificate, {
     message: "",
