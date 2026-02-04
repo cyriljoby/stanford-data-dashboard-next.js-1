@@ -31,6 +31,12 @@ const SubmissionSuccessContent = () => {
   const teacherEmail = searchParams.get("teacherEmail") || "";
   const teacherName = searchParams.get("teacherName") || "";
 
+  console.log("DEBUG pathname:", pathname);
+  console.log("DEBUG title:", title);
+  console.log("DEBUG showCertificate:", showCertificate);
+  console.log("DEBUG teacherEmail:", teacherEmail);
+  console.log("DEBUG teacherName:", teacherName);
+
   const [state, formAction] = useFormState(emailCertificate, {
     message: "",
     certificateUrl: "",
