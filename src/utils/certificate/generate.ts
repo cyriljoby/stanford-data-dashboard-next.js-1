@@ -12,12 +12,16 @@ export async function generateCertificate(
   // Create a new PDF document
   const pdfDoc = await PDFDocument.create();
 
-  const baseUrl = process.env.VERCEL_URL
-    ? `https://${process.env.VERCEL_URL}`
-    : "http://localhost:3000";
+  // Use production URL to avoid 401 on preview deployments with auth
+  const baseUrl =
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    (process.env.VERCEL_ENV === "production"
+      ? "https://datadashboard.stanfordreachlab.com"
+      : process.env.VERCEL_URL
+        ? `https://${process.env.VERCEL_URL}`
+        : "http://localhost:3000");
 
   const templateUrl = `${baseUrl}/StanfordReachLabHealthyFuturesCert.png`;
-
   const res = await fetch(templateUrl);
   if (!res.ok) {
     throw new Error(`Failed to fetch certificate template: ${res.status}`);

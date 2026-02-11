@@ -521,9 +521,13 @@ export async function GET(request: NextRequest) {
     console.timeEnd("EXPORT_TOTAL");
     console.log("Export complete. Preparing download...");
 
-    // Stream the file to the client
-    const stream = fs.createReadStream(filePath);
-    return new NextResponse(stream as any, {
+    // Read the file into a buffer (more reliable on serverless)
+    const fileBuffer = fs.readFileSync(filePath);
+
+    // Clean up temp file
+    fs.unlinkSync(filePath);
+
+    return new NextResponse(fileBuffer, {
       status: 200,
       headers: {
         "Content-Type":
