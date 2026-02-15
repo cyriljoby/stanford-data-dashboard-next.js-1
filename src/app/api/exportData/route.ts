@@ -227,13 +227,6 @@ export async function GET(request: NextRequest) {
       return formNameMap[name] || name;
     }
 
-    // Strip XML 1.0 illegal control characters (keeps \t, \n, \r)
-    function sanitizeString(val: any): string {
-      if (val === null || val === undefined) return "";
-      // eslint-disable-next-line no-control-regex
-      return String(val).replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, "");
-    }
-
     // Fast date formatter (much faster than toLocaleString)
     function formatDate(date: Date): string {
       const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -337,11 +330,10 @@ export async function GET(request: NextRequest) {
 
       // Create columns for unique question names
       for (const [questionName, questionInfos] of questionsByName.entries()) {
-        const sanitizedQuestionName = sanitizeString(questionName);
         const label =
-          sanitizedQuestionName.length > 70
-            ? sanitizedQuestionName.slice(0, 67) + "..."
-            : sanitizedQuestionName;
+          questionName.length > 70
+            ? questionName.slice(0, 67) + "..."
+            : questionName;
 
         // Use first question's ID as the column key
         const columnKey = `q_${questionInfos[0].id}`;
@@ -440,20 +432,20 @@ export async function GET(request: NextRequest) {
 
         const row: any = {
           responseId: r.id,
-          formTitle: sanitizeString(form.title),
-          formType: sanitizeString(form.type),
-          teacherName: sanitizeString(r.teacher.name),
-          teacherEmail: sanitizeString(r.teacher.email),
+          formTitle: form.title,
+          formType: form.type,
+          teacherName: r.teacher.name,
+          teacherEmail: r.teacher.email,
           grade:
             r.grade !== null && r.grade !== undefined && r.grade !== ""
               ? Number(r.grade)
-              : undefined,
-          period: sanitizeString(r.period),
-          state: sanitizeString(r.teacherLocation.state),
-          county: sanitizeString(r.teacherLocation.county),
-          district: sanitizeString(r.teacherLocation.district),
-          city: sanitizeString(r.teacherLocation.city),
-          school: sanitizeString(r.teacherLocation.school),
+              : null,
+          period: r.period ?? "",
+          state: r.teacherLocation.state,
+          county: r.teacherLocation.county,
+          district: r.teacherLocation.district,
+          city: r.teacherLocation.city,
+          school: r.teacherLocation.school,
           createdAt: formatDate(r.createdAt),
         };
 
@@ -462,7 +454,7 @@ export async function GET(request: NextRequest) {
 
         if (columnMapping) {
           for (const [columnKey, questionIds] of columnMapping.entries()) {
-            let answer: number | undefined = undefined;
+            let answer: number | null = null;
 
             for (const qId of questionIds) {
               const foundAnswer = answerMap.get(qId);
@@ -473,14 +465,12 @@ export async function GET(request: NextRequest) {
                 foundAnswer !== ""
               ) {
                 const numeric = Number(foundAnswer);
-                answer = Number.isNaN(numeric) ? undefined : numeric;
+                answer = Number.isNaN(numeric) ? null : numeric;
                 break;
               }
             }
 
-            if (answer !== undefined) {
-              row[columnKey] = answer;
-            }
+            row[columnKey] = answer;
           }
         }
 
@@ -493,15 +483,8 @@ export async function GET(request: NextRequest) {
     console.log("Total rows collected:", totalCount);
     console.log("Sorting and writing rows...");
 
-    // Sort and write rows for each sheet (skip empty sheets)
-    const sheetsWithData = new Set<string>();
+    // Sort and write rows for each sheet
     for (const [baseFormName, rows] of sheetRows.entries()) {
-      if (rows.length === 0) {
-        console.log(`Skipping empty sheet "${baseFormName}"`);
-        continue;
-      }
-      sheetsWithData.add(baseFormName);
-
       // Sort by year first, then pre before post, then form title
       rows.sort((a, b) => {
         // Compare years first (2023, 2024, then unknown/"9999")
@@ -529,9 +512,7 @@ export async function GET(request: NextRequest) {
     }
 
     console.log("Finalizing workbook...");
-    for (const [name, sheet] of sheets.entries()) {
-      if (sheetsWithData.has(name)) sheet.commit();
-    }
+    for (const sheet of sheets.values()) sheet.commit();
 
     console.time("WORKBOOK_COMMIT");
     await workbook.commit();
