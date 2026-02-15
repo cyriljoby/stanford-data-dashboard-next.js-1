@@ -7,6 +7,7 @@ import { Label } from "../ui/label";
 import SelectInput from "../form/SelectInput";
 import { downloadData } from "@/utils/actions";
 import { SubmitButton } from "../form/Buttons";
+import { Button } from "../ui/button";
 import { useEffect } from "react";
 import { DatePicker } from "../ui/date-picker";
 
@@ -360,6 +361,17 @@ const TeacherMetricsFilters = ({
           className="self-end"
           text={loading ? "Exporting..." : "Export Data"}
         />
+        <Button
+          type="button"
+          variant="outline"
+          size="lg"
+          className="self-end"
+          asChild
+        >
+          <a href="/Stanford REACH Lab Data Dashboard Codebook_2025.xlsx" download>
+            Download Codebook
+          </a>
+        </Button>
       </div>
     </FormContainer>
   );

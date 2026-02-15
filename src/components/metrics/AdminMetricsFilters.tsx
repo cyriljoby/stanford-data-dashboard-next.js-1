@@ -10,6 +10,7 @@ import { fetchLocations } from "@/utils/helpers";
 import { Label } from "../ui/label";
 import SelectInput from "../form/SelectInput";
 import { SubmitButton } from "../form/Buttons";
+import { Button } from "../ui/button";
 import { DatePicker } from "../ui/date-picker";
 
 const AdminMetricsFilters = ({
@@ -352,6 +353,17 @@ const AdminMetricsFilters = ({
           className="self-end"
           text={loading ? "Exporting..." : "Export Data"}
         />
+        <Button
+          type="button"
+          variant="outline"
+          size="lg"
+          className="self-end"
+          asChild
+        >
+          <a href="/Stanford REACH Lab Data Dashboard Codebook_2025.xlsx" download>
+            Download Codebook
+          </a>
+        </Button>
       </div>
     </FormContainer>
   );
