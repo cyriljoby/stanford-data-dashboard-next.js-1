@@ -194,7 +194,8 @@ export async function GET(request: NextRequest) {
       useSharedStrings: false,
     });
 
-    const sheets = new Map<string, ExcelJS.Worksheet>();
+    // Sheets are created lazily after we know which groups have data
+    const sheetColumnDefs = new Map<string, any[]>();
 
     // Helper to get base form name (remove year suffix like " 2023", " 2024")
     function getBaseFormName(formTitle: string): string {
@@ -227,25 +228,31 @@ export async function GET(request: NextRequest) {
       return formNameMap[name] || name;
     }
 
-    // Strip XML 1.0 illegal control characters (keeps \t, \n, \r)
-    function sanitizeString(val: any): string {
-      if (val === null || val === undefined) return "";
+    // Strip XML 1.0 illegal control characters. Returns undefined for empty/null
+    // so ExcelJS skips the cell entirely instead of writing an empty string element.
+    function sanitizeString(val: any): string | undefined {
+      if (val === null || val === undefined) return undefined;
       // eslint-disable-next-line no-control-regex
-      return String(val).replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, "");
+      const s = String(val).replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, "");
+      return s.length > 0 ? s : undefined;
     }
 
-    // Fast date formatter (much faster than toLocaleString)
+    // Returns YYYY-MM-DD (sortable)
     function formatDate(date: Date): string {
       const month = String(date.getMonth() + 1).padStart(2, "0");
       const day = String(date.getDate()).padStart(2, "0");
       const year = date.getFullYear();
+      return `${year}-${month}-${day}`;
+    }
+
+    // Returns HH:MM:SS AM/PM
+    function formatTime(date: Date): string {
       let hours = date.getHours();
       const minutes = String(date.getMinutes()).padStart(2, "0");
       const seconds = String(date.getSeconds()).padStart(2, "0");
       const ampm = hours >= 12 ? "PM" : "AM";
       hours = hours % 12 || 12;
-      const hoursStr = String(hours).padStart(2, "0");
-      return `${month}/${day}/${year}, ${hoursStr}:${minutes}:${seconds} ${ampm}`;
+      return `${String(hours).padStart(2, "0")}:${minutes}:${seconds} ${ampm}`;
     }
 
     // ------------------------------
@@ -260,23 +267,25 @@ export async function GET(request: NextRequest) {
     // Group forms by base name only (NOT type) - combine pre/post together
     const formGroups = new Map<string, any[]>();
 
-    for (const form of allForms) {
-      const baseFormName = getBaseFormName(form.title);
-      const formGroupKey = baseFormName; // No type suffix - combine pre/post
+    // If a curriculum filter is active, only build a sheet for that group
+    const selectedBaseFormName = (form && form !== "All") ? getBaseFormName(form) : null;
 
-      if (!formGroups.has(formGroupKey)) {
-        formGroups.set(formGroupKey, []);
+    for (const f of allForms) {
+      const baseFormName = getBaseFormName(f.title);
+      if (selectedBaseFormName && baseFormName !== selectedBaseFormName) continue;
+
+      if (!formGroups.has(baseFormName)) {
+        formGroups.set(baseFormName, []);
       }
-
-      formGroups.get(formGroupKey)!.push(form);
+      formGroups.get(baseFormName)!.push(f);
     }
 
     // Create sheets with deduplicated columns
     for (const [baseFormName, forms] of formGroups.entries()) {
       const columns: any[] = [
         { header: "response_id", key: "responseId", width: 30 },
-        { header: "form_title", key: "formTitle", width: 25 },
-        { header: "form_type", key: "formType", width: 10 },
+        { header: "curriculum", key: "formTitle", width: 25 },
+        { header: "pre_post", key: "formType", width: 10 },
         { header: "teacher_name", key: "teacherName", width: 25 },
         { header: "teacher_email", key: "teacherEmail", width: 30 },
         { header: "grade", key: "grade", width: 10 },
@@ -286,7 +295,8 @@ export async function GET(request: NextRequest) {
         { header: "district", key: "district", width: 25 },
         { header: "city", key: "city", width: 15 },
         { header: "school", key: "school", width: 30 },
-        { header: "created_at", key: "createdAt", width: 22 },
+        { header: "date", key: "createdAt", width: 12 },
+        { header: "time", key: "time", width: 14 },
       ];
 
       // Collect ALL questions from all forms in this group (pre, post, all years)
@@ -337,7 +347,7 @@ export async function GET(request: NextRequest) {
 
       // Create columns for unique question names
       for (const [questionName, questionInfos] of questionsByName.entries()) {
-        const sanitizedQuestionName = sanitizeString(questionName);
+        const sanitizedQuestionName = sanitizeString(questionName) ?? questionName;
         const label =
           sanitizedQuestionName.length > 70
             ? sanitizedQuestionName.slice(0, 67) + "..."
@@ -357,17 +367,12 @@ export async function GET(request: NextRequest) {
         });
       }
 
-      // Store column mapping for later use when filling rows
+      // Store column mapping and column defs for later use
       columnMappings.set(baseFormName, columnMapping);
-
-      const shortName = shortenFormName(baseFormName);
-      const sanitizedName = sanitizeSheetName(shortName).slice(0, 31);
-      const sheet = workbook.addWorksheet(sanitizedName);
-      sheet.columns = columns;
-      sheets.set(baseFormName, sheet);
+      sheetColumnDefs.set(baseFormName, columns);
 
       console.log(
-        `Created sheet "${sanitizedName}" (from "${baseFormName}") with ${columns.length - 13} question columns (${allQuestions.length} total questions, ${questionsByName.size} unique)`,
+        `Prepared "${baseFormName}" with ${columns.length - 14} question columns (${allQuestions.length} total questions, ${questionsByName.size} unique)`,
       );
     }
 
@@ -381,7 +386,7 @@ export async function GET(request: NextRequest) {
 
     // Collect all rows per sheet for sorting
     const sheetRows = new Map<string, any[]>();
-    for (const baseFormName of sheets.keys()) {
+    for (const baseFormName of sheetColumnDefs.keys()) {
       sheetRows.set(baseFormName, []);
     }
 
@@ -446,17 +451,19 @@ export async function GET(request: NextRequest) {
           formType: sanitizeString(form.type),
           teacherName: sanitizeString(r.teacher.name),
           teacherEmail: sanitizeString(r.teacher.email),
-          grade:
-            r.grade !== null && r.grade !== undefined && r.grade !== ""
-              ? Number(r.grade)
-              : undefined,
-          period: sanitizeString(r.period),
+          grade: (() => {
+            if (r.grade === null || r.grade === undefined || r.grade === "") return undefined;
+            const n = Number(r.grade);
+            return Number.isNaN(n) ? undefined : n;
+          })(),
+          period: r.period ?? undefined,
           state: sanitizeString(r.teacherLocation.state),
           county: sanitizeString(r.teacherLocation.county),
           district: sanitizeString(r.teacherLocation.district),
           city: sanitizeString(r.teacherLocation.city),
           school: sanitizeString(r.teacherLocation.school),
           createdAt: formatDate(r.createdAt),
+          time: formatTime(r.createdAt),
         };
 
         // Fill answer data using the column mapping
@@ -495,44 +502,53 @@ export async function GET(request: NextRequest) {
     console.log("Total rows collected:", totalCount);
     console.log("Sorting and writing rows...");
 
-    // Sort and write rows for each sheet (skip empty sheets)
-    const sheetsWithData = new Set<string>();
-    for (const [baseFormName, rows] of sheetRows.entries()) {
+    // Desired sheet order — related curricula grouped together
+    const sheetOrder = [
+      "You and Me Vape Free (middle school and above)",
+      "You and Me, Together Vape-Free(elem)",
+      "Healthy Futures: Cannabis",
+      "Healthy Futures: Tobacco/Nicotine/Vaping",
+      "Smart Talk: Cannabis Prevention & Education Awareness",
+      "Smart Talk: Cannabis Prevention & Education Awareness(elem)",
+      "Safety First",
+    ];
+
+    const orderedEntries = [...sheetRows.entries()].sort(([a], [b]) => {
+      const ai = sheetOrder.indexOf(a);
+      const bi = sheetOrder.indexOf(b);
+      if (ai === -1 && bi === -1) return a.localeCompare(b);
+      if (ai === -1) return 1;
+      if (bi === -1) return -1;
+      return ai - bi;
+    });
+
+    // Create sheets only for groups that have data, then write and commit
+    for (const [baseFormName, rows] of orderedEntries) {
       if (rows.length === 0) {
         console.log(`Skipping empty sheet "${baseFormName}"`);
         continue;
       }
-      sheetsWithData.add(baseFormName);
+
       // Sort by year first, then pre before post, then form title
       rows.sort((a, b) => {
-        // Compare years first (2023, 2024, then unknown/"9999")
         const yearA = a.formTitle.match(/\s(\d{4})$/)?.[1] || "9999";
         const yearB = b.formTitle.match(/\s(\d{4})$/)?.[1] || "9999";
-
-        if (yearA !== yearB) {
-          return yearA.localeCompare(yearB);
-        }
-
-        // If same year, compare type (pre before post)
-        if (a.formType !== b.formType) {
-          return a.formType === "pre" ? -1 : 1;
-        }
-
-        // If same year and type, compare by form title
+        if (yearA !== yearB) return yearA.localeCompare(yearB);
+        if (a.formType !== b.formType) return a.formType === "pre" ? -1 : 1;
         return a.formTitle.localeCompare(b.formTitle);
       });
 
-      const sheet = sheets.get(baseFormName)!;
+      const sanitizedName = sanitizeSheetName(shortenFormName(baseFormName)).slice(0, 31);
+      const sheet = workbook.addWorksheet(sanitizedName);
+      sheet.columns = sheetColumnDefs.get(baseFormName)!;
       for (const row of rows) {
         sheet.addRow(row).commit();
       }
-      console.log(`Written ${rows.length} rows to sheet "${baseFormName}"`);
+      sheet.commit();
+      console.log(`Written ${rows.length} rows to sheet "${sanitizedName}"`);
     }
 
     console.log("Finalizing workbook...");
-    for (const [name, sheet] of sheets.entries()) {
-      if (sheetsWithData.has(name)) sheet.commit();
-    }
 
     console.time("WORKBOOK_COMMIT");
     await workbook.commit();
