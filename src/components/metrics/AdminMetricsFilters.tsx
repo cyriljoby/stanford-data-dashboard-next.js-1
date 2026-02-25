@@ -2,7 +2,7 @@
 import { Roles, UserLocation } from "@prisma/client";
 import { useEffect, useState } from "react";
 import FormContainer from "../form/FormContainer";
-import { downloadData } from "@/utils/actions";
+import { downloadData, downloadUsers } from "@/utils/actions";
 import LocationComboBox from "../selectCreateLocation/LocationComboBox";
 import countries from "@/data/countries";
 import states from "@/data/states";
@@ -31,6 +31,7 @@ const AdminMetricsFilters = ({
   const fixedDistrict = fixedCounty && role != Roles.county;
   const fixedCityAndSchool = role == Roles.site;
   const [loading, setLoading] = useState(false);
+  const [loadingUsers, setLoadingUsers] = useState(false);
   const [startDate, setStartDate] = useState<Date | undefined>(
     firstResponseDate
   );
@@ -63,6 +64,17 @@ const AdminMetricsFilters = ({
       return { success: false, message: "Export failed", errorMessage: true };
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleExportUsers = async () => {
+    try {
+      setLoadingUsers(true);
+      await downloadUsers();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingUsers(false);
     }
   };
 
@@ -364,6 +376,18 @@ const AdminMetricsFilters = ({
             Download Codebook
           </a>
         </Button>
+        {role === Roles.stanford && (
+          <Button
+            type="button"
+            variant="outline"
+            size="lg"
+            className="self-end"
+            disabled={loadingUsers}
+            onClick={handleExportUsers}
+          >
+            {loadingUsers ? "Exporting..." : "Export Users"}
+          </Button>
+        )}
       </div>
     </FormContainer>
   );
