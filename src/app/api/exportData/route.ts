@@ -508,6 +508,8 @@ export async function GET(request: NextRequest) {
       "Smart Talk: Cannabis Prevention & Education Awareness",
       "Smart Talk: Cannabis Prevention & Education Awareness(elem)",
       "Safety First",
+      "Safety First - Fentanyl Lesson",
+      "LGBTQ+ Curriculum",
     ];
 
     const orderedEntries = [...sheetRows.entries()].sort(([a], [b]) => {
