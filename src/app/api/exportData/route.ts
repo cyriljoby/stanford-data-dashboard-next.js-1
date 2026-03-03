@@ -129,27 +129,6 @@ export async function GET(request: NextRequest) {
     const startDate = get("startDate");
     const endDate = get("endDate");
 
-    if (form && form !== "All") {
-      console.time("DB_FORM_LOOKUP");
-      const matchingForms = await prisma.form.findMany({
-        where: { title: form },
-        select: { id: true },
-      });
-      console.timeEnd("DB_FORM_LOOKUP");
-
-      if (matchingForms.length === 0) {
-        return NextResponse.json(
-          { error: `No forms found with title: ${form}` },
-          { status: 400 },
-        );
-      }
-
-      const formIds = matchingForms.map((f: any) => f.id);
-      whereResponses.formId = { in: formIds };
-
-      console.log(`Resolved "${form}" to formIds:`, formIds);
-    }
-
     if (role === "teacher" && userId) whereResponses.teacherId = userId;
 
     // Add date range filtering
@@ -184,6 +163,24 @@ export async function GET(request: NextRequest) {
 
     const formCache = new Map(allForms.map((f: any) => [f.id, f]));
     console.log(`Cached ${formCache.size} forms`);
+
+    // Apply form filter using base name matching — includes all year variants
+    // (e.g. selecting "Healthy Futures: Cannabis" also pulls "HF Cannabis 2022", "HF Cannabis 2023", etc.)
+    if (form && form !== "All") {
+      const baseNameForFilter = getBaseFormName(form);
+      const matchingForms = allForms.filter(
+        (f: any) => getBaseFormName(f.title) === baseNameForFilter
+      );
+
+      if (matchingForms.length === 0) {
+        return NextResponse.json(
+          { error: `No forms found for curriculum: ${form}` },
+          { status: 400 },
+        );
+      }
+
+      whereResponses.formId = { in: matchingForms.map((f: any) => f.id) };
+    }
 
     const filePath = path.join("/tmp", `responses_${Date.now()}.xlsx`);
     console.log("Creating workbook:", filePath);

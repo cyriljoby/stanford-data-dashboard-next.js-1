@@ -13,11 +13,6 @@ function sanitizeString(val: any): string | undefined {
   return s.length > 0 ? s : undefined;
 }
 
-// Join unique non-empty values from an array with "; "
-function joinUnique(values: (string | null | undefined)[]): string | undefined {
-  const unique = [...new Set(values.filter((v) => v != null && v !== "").map(String))];
-  return unique.length > 0 ? unique.join("; ") : undefined;
-}
 
 export async function GET(request: NextRequest) {
   try {
@@ -74,28 +69,35 @@ export async function GET(request: NextRequest) {
       { header: "district", key: "district", width: 25 },
       { header: "city", key: "city", width: 15 },
       { header: "school", key: "school", width: 30 },
-      { header: "approved_locations", key: "approvedCount", width: 10 },
+      { header: "approved", key: "approved", width: 10 },
     ];
 
     for (const user of users) {
       const locs = user.userLocations;
-
-      const row = {
+      const userBase = {
         name: sanitizeString(user.name),
         email: sanitizeString(user.email),
         role: sanitizeString(user.role),
         isTeacher: user.isTeacher ? "Yes" : "No",
         code: sanitizeString(user.code),
-        country: joinUnique(locs.map((l) => l.country)),
-        state: joinUnique(locs.map((l) => l.state)),
-        county: joinUnique(locs.map((l) => l.county)),
-        district: joinUnique(locs.map((l) => l.district)),
-        city: joinUnique(locs.map((l) => l.city)),
-        school: joinUnique(locs.map((l) => l.school)),
-        approvedCount: locs.filter((l) => l.approved).length || undefined,
       };
 
-      sheet.addRow(row).commit();
+      if (locs.length === 0) {
+        sheet.addRow(userBase).commit();
+      } else {
+        for (const loc of locs) {
+          sheet.addRow({
+            ...userBase,
+            country: sanitizeString(loc.country),
+            state: sanitizeString(loc.state),
+            county: sanitizeString(loc.county),
+            district: sanitizeString(loc.district),
+            city: sanitizeString(loc.city),
+            school: sanitizeString(loc.school),
+            approved: loc.approved ? "Yes" : "No",
+          }).commit();
+        }
+      }
     }
 
     sheet.commit();
