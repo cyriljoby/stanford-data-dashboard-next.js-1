@@ -58,7 +58,7 @@ const verifyLocationConsistency = async ({
     where: { userId },
   });
 
-  if (!dbUserLocation || role === Roles.teacher || role === Roles.stanford)
+  if (!dbUserLocation || role === Roles.teacher || role === Roles.stanford || isTeacher)
     return;
 
   if (
