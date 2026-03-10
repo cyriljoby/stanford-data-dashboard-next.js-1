@@ -4,18 +4,31 @@ import { useState } from "react";
 import FormContainer from "../form/FormContainer";
 import LocationComboBox from "../selectCreateLocation/LocationComboBox";
 import { Label } from "../ui/label";
-import SelectInput from "../form/SelectInput";
 import { downloadData } from "@/utils/actions";
 import { SubmitButton } from "../form/Buttons";
 import { Button } from "../ui/button";
 import { useEffect } from "react";
 import { DatePicker } from "../ui/date-picker";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
+import { Skeleton } from "../ui/skeleton";
+import PrePostChart from "./PrePostChart";
+import type { ChartDataResponse } from "@/utils/types";
 
 const TeacherMetricsFilters = ({
+  role,
+  userId,
   teacherLocations,
   forms,
   firstResponseDate,
 }: {
+  role: string;
+  userId: string;
   teacherLocations: UserLocation[];
   forms: string[];
   firstResponseDate?: Date;
@@ -29,10 +42,15 @@ const TeacherMetricsFilters = ({
     school: "All",
   });
   const [loading, setLoading] = useState(false);
-  const [startDate, setStartDate] = useState<Date | undefined>(
-    firstResponseDate
-  );
+  const [startDate, setStartDate] = useState<Date | undefined>(firstResponseDate);
   const [endDate, setEndDate] = useState<Date | undefined>(new Date());
+
+  // Chart state
+  const [selectedForm, setSelectedForm] = useState("All");
+  const [chartData, setChartData] = useState<ChartDataResponse | null>(null);
+  const [loadingChart, setLoadingChart] = useState(false);
+  const [chartError, setChartError] = useState<string | null>(null);
+
   const handleExport = async (prevState: any, formData: FormData) => {
     try {
       setLoading(true);
@@ -44,7 +62,6 @@ const TeacherMetricsFilters = ({
         if (value && value !== "All") paramsObj[key] = String(value);
       }
 
-      // Add date filters if set
       if (startDate) {
         paramsObj.startDate = startDate.toISOString().split("T")[0];
       }
@@ -60,6 +77,40 @@ const TeacherMetricsFilters = ({
       return { success: false, message: "Export failed", errorMessage: true };
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleViewCharts = async () => {
+    setLoadingChart(true);
+    setChartError(null);
+    setChartData(null);
+    try {
+      const params = new URLSearchParams({ form: selectedForm, role, userId });
+      if (location.country && location.country !== "All")
+        params.append("country", location.country);
+      if (location.state && location.state !== "All")
+        params.append("state", location.state);
+      if (location.county && location.county !== "All")
+        params.append("county", location.county);
+      if (location.district && location.district !== "All")
+        params.append("district", location.district);
+      if (location.city && location.city !== "All")
+        params.append("city", location.city);
+      if (location.school && location.school !== "All")
+        params.append("school", location.school);
+      if (startDate) params.append("startDate", startDate.toISOString().split("T")[0]);
+      if (endDate) params.append("endDate", endDate.toISOString().split("T")[0]);
+
+      const res = await fetch(`/api/chartData?${params.toString()}`);
+      if (!res.ok) {
+        const body = await res.json();
+        throw new Error(body.error || "Failed to load chart data");
+      }
+      setChartData(await res.json());
+    } catch (e) {
+      setChartError(e instanceof Error ? e.message : "Failed to load chart data");
+    } finally {
+      setLoadingChart(false);
     }
   };
 
@@ -329,16 +380,27 @@ const TeacherMetricsFilters = ({
         </div>
         <div>
           <Label>Form</Label>
-          <SelectInput
-            name="form"
-            placeholder="Select a form"
-            options={[
-              { text: "All", value: "All" },
-              ...forms.map((form) => ({ text: form, value: form })),
-            ]}
-            defaultValue="All"
-            withMargin={false}
-          />
+          {/* Hidden input so handleExport (FormData) still reads the form value */}
+          <input type="hidden" name="form" value={selectedForm} />
+          <Select
+            value={selectedForm}
+            onValueChange={(v) => {
+              setSelectedForm(v);
+              setChartData(null);
+            }}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select a form" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="All">All</SelectItem>
+              {forms.map((f) => (
+                <SelectItem key={f} value={f}>
+                  {f}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div>
           <Label htmlFor="startDate">Start Date</Label>
@@ -366,6 +428,21 @@ const TeacherMetricsFilters = ({
           variant="outline"
           size="lg"
           className="self-end"
+          disabled={loadingChart || selectedForm === "All"}
+          title={
+            selectedForm === "All"
+              ? "Select a specific form to view charts"
+              : undefined
+          }
+          onClick={handleViewCharts}
+        >
+          {loadingChart ? "Loading..." : "View Charts"}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="lg"
+          className="self-end"
           asChild
         >
           <a href="/Stanford REACH Lab Data Dashboard Codebook_2025.xlsx" download>
@@ -373,6 +450,14 @@ const TeacherMetricsFilters = ({
           </a>
         </Button>
       </div>
+
+      {chartError && (
+        <p className="mt-4 text-sm text-destructive">{chartError}</p>
+      )}
+      {loadingChart && <Skeleton className="mt-6 h-[420px] w-full" />}
+      {chartData && !loadingChart && (
+        <PrePostChart data={chartData} formName={selectedForm} />
+      )}
     </FormContainer>
   );
 };

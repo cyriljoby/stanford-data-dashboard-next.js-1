@@ -68,3 +68,11 @@ export type updateOptionFn = (
   code: number
 ) => void;
 export type deleteOptionFn = (questionId: string, optionId: string) => void;
+
+export type ChartDataResponse = {
+  questions: string[];
+  preAverages: Record<string, number>;
+  postAverages: Record<string, number>;
+  preCount: number;
+  postCount: number;
+};

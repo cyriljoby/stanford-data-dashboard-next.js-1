@@ -46,6 +46,8 @@ const MetricsPage = async () => {
         <CardContent>
           {role === Roles.teacher ? (
             <TeacherMetricsFilters
+              role={role}
+              userId={userId}
               teacherLocations={teacherLocations}
               forms={[...forms]}
               firstResponseDate={firstResponseDate}
@@ -53,6 +55,7 @@ const MetricsPage = async () => {
           ) : (
             <AdminMetricsFilters
               role={role}
+              userId={userId}
               adminLocation={adminLocation}
               forms={[...forms]}
               firstResponseDate={firstResponseDate}
