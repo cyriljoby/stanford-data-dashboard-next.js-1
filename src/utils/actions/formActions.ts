@@ -81,6 +81,38 @@ export const getAllForms = async () => {
   return forms;
 };
 
+export const duplicateForm = async (prevState: any, formData: FormData) => {
+  void formData;
+  try {
+    await ensureStanfordUser();
+
+    const { formId, title: customTitle } = prevState;
+    const source = await prisma.form.findUnique({ where: { id: formId } });
+
+    if (!source) throw Error("Form not found");
+
+    await prisma.form.create({
+      data: {
+        title: customTitle || `Copy of ${source.title}`,
+        type: source.type,
+        active: false,
+        provideCertificate: source.provideCertificate,
+        questions: {
+          set: source.questions.map((q: any) => ({
+            ...q,
+            id: uuidv4(),
+          })),
+        },
+      },
+    });
+
+    revalidatePath("/dashboard/manageForms");
+    return { message: "Successfully duplicated form" };
+  } catch (error) {
+    return renderError(error);
+  }
+};
+
 export const deleteForm = async (prevState: any, formData: FormData) => {
   void formData;
   try {
