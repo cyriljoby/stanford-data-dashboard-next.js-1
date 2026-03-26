@@ -350,6 +350,8 @@ const AdminMetricsFilters = ({
             date={startDate}
             onDateChange={setStartDate}
             placeholder="Select start date"
+            fromDate={new Date("2023-08-08")}
+            toDate={new Date()}
           />
         </div>
         <div>
@@ -358,6 +360,8 @@ const AdminMetricsFilters = ({
             date={endDate}
             onDateChange={setEndDate}
             placeholder="Select end date"
+            fromDate={new Date("2023-08-08")}
+            toDate={new Date()}
           />
         </div>
         <SubmitButton

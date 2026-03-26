@@ -130,6 +130,7 @@ const countries = [
     "NIGERIA",
     "NORTH KOREA",
     "NORTH MACEDONIA",
+    "NORTHERN IRELAND",
     "NORWAY",
     "OMAN",
     "PAKISTAN",

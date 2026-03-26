@@ -121,8 +121,14 @@ export async function GET(request: NextRequest) {
     // ------------------------------
     // 2) Build response filters
     // ------------------------------
+
+    // Pre-fetch valid teacher IDs to skip orphaned records (teacher deleted but response remains)
+    const validUsers = await prisma.user.findMany({ select: { id: true } });
+    const validUserIds = validUsers.map((u) => u.id);
+
     const whereResponses: any = {
       teacherLocationId: { in: userLocationIds },
+      teacherId: { in: validUserIds },
     };
 
     const form = get("form");
