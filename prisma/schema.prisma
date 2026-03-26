@@ -101,7 +101,7 @@ model ResponseWithTeacher {
   id String @id @default(auto()) @map("_id") @db.ObjectId
   form Form @relation(fields: [formId], references: [id])
   formId String @db.ObjectId
-  teacher User @relation(fields: [teacherId], references: [id])
+  teacher User @relation(fields: [teacherId], references: [id], onDelete: Cascade)
   teacherId String @db.ObjectId
   teacherLocation UserLocation @relation(fields: [teacherLocationId], references: [id])
   teacherLocationId String @db.ObjectId
