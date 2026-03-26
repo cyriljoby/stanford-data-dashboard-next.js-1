@@ -222,9 +222,13 @@ export const getUserLocation = async (userId: string) => {
 };
 
 export const getPendingUserLocations = async () => {
+  const validUsers = await prisma.user.findMany({ select: { id: true } });
+  const validUserIds = validUsers.map((u) => u.id);
+
   const userLocations = await prisma.userLocation.findMany({
     where: {
       approved: false,
+      userId: { in: validUserIds },
     },
     include: {
       user: {
