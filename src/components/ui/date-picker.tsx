@@ -51,8 +51,10 @@ export function DatePicker({
           selected={date}
           onSelect={onDateChange}
           initialFocus
-          fromDate={fromDate}
-          toDate={toDate}
+          disabled={[
+            ...(fromDate ? [{ before: fromDate }] : []),
+            ...(toDate ? [{ after: toDate }] : []),
+          ]}
         />
       </PopoverContent>
     </Popover>
