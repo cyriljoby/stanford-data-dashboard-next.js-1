@@ -288,6 +288,7 @@ export async function GET(request: NextRequest) {
         { header: "teacher_email", key: "teacherEmail", width: 30 },
         { header: "grade", key: "grade", width: 10 },
         { header: "period", key: "period", width: 10 },
+        { header: "country", key: "country", width: 20 },
         { header: "state", key: "state", width: 15 },
         { header: "county", key: "county", width: 20 },
         { header: "district", key: "district", width: 25 },
@@ -404,6 +405,7 @@ export async function GET(request: NextRequest) {
           teacher: { select: { name: true, email: true } },
           teacherLocation: {
             select: {
+              country: true,
               state: true,
               county: true,
               district: true,
@@ -455,6 +457,7 @@ export async function GET(request: NextRequest) {
             return Number.isNaN(n) ? undefined : n;
           })(),
           period: r.period ?? undefined,
+          country: sanitizeString(r.teacherLocation.country),
           state: sanitizeString(r.teacherLocation.state),
           county: sanitizeString(r.teacherLocation.county),
           district: sanitizeString(r.teacherLocation.district),
