@@ -402,22 +402,58 @@ export async function GET(request: NextRequest) {
           period: true,
           answers: true,
           createdAt: true,
-          teacher: { select: { name: true, email: true } },
-          teacherLocation: {
-            select: {
-              country: true,
-              state: true,
-              county: true,
-              district: true,
-              city: true,
-              school: true,
-            },
-          },
+          teacherId: true,
+          teacherLocationId: true,
         },
         take: batchSize,
         ...(lastId ? { cursor: { id: lastId }, skip: 1 } : {}),
         orderBy: { id: "asc" },
       });
+
+      // Fetch teacher and location data separately to handle orphans gracefully
+      const teacherIds = [...new Set(batch.map((r: any) => r.teacherId))];
+      const locationIds = [...new Set(batch.map((r: any) => r.teacherLocationId))];
+
+      const teachers = await prisma.user.findMany({
+        where: { id: { in: teacherIds } },
+        select: { id: true, name: true, email: true },
+      });
+      const teacherMap = new Map(
+        teachers.map((t) => [t.id, { name: t.name, email: t.email }])
+      );
+
+      const locations = await prisma.userLocation.findMany({
+        where: { id: { in: locationIds } },
+        select: {
+          id: true,
+          country: true,
+          state: true,
+          county: true,
+          district: true,
+          city: true,
+          school: true,
+        },
+      });
+      const locationMap = new Map(
+        locations.map((l) => [
+          l.id,
+          {
+            country: l.country,
+            state: l.state,
+            county: l.county,
+            district: l.district,
+            city: l.city,
+            school: l.school,
+          },
+        ])
+      );
+
+      // Enrich batch with resolved teacher and location data
+      const enrichedBatch = batch.map((r: any) => ({
+        ...r,
+        teacher: teacherMap.get(r.teacherId),
+        teacherLocation: locationMap.get(r.teacherLocationId),
+      }));
 
       console.timeEnd(`DB_BATCH_${batchIndex}`);
 
@@ -432,7 +468,7 @@ export async function GET(request: NextRequest) {
         lastId = batch[batch.length - 1].id;
       }
 
-      for (const r of batch) {
+      for (const r of enrichedBatch) {
         const form: any = formCache.get(r.formId);
         if (!form) continue;
 
