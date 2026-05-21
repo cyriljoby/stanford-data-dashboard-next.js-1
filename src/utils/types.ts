@@ -51,13 +51,15 @@ export type question = {
   showInTeacherExport: boolean;
   options: questionOption[];
   name: string;
+  matrixGroup?: string;
 };
 
 export type updateQuestionFn = (
   id: string,
   questionText: string,
   showInTeacherExport: boolean,
-  name: string
+  name: string,
+  matrixGroup?: string
 ) => void;
 
 export type handleQuestionByIdFn = (questionId: string) => void;

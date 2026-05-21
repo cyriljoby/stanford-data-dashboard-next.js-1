@@ -1,5 +1,5 @@
 import FormDetailsInput from "@/components/addForm/FormDetailsInput";
-import Question from "@/components/studentForm/Question";
+import EditQuestionsPanel from "@/components/editForm/EditQuestionsPanel";
 import TitleInput from "@/components/addForm/TitleInput";
 import { SubmitButton } from "@/components/form/Buttons";
 import FormContainer from "@/components/form/FormContainer";
@@ -24,9 +24,7 @@ const EditFormPage = async ({ params }: any) => {
         }}
         disableType={true}
       />
-      {questions.map((question, i) => {
-        return <Question key={i} question={question} disabled={true} />;
-      })}
+      <EditQuestionsPanel initialQuestions={questions} />
       <SubmitButton text="save changes" className="mt-4 w-full" />
     </FormContainer>
   );

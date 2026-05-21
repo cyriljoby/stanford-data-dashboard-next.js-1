@@ -308,6 +308,7 @@ export const updateFormSchema = z.object({
   provideCertificate: z
     .enum(["true", "false"])
     .transform((val) => val === "true"),
+  questions: z.string().optional(),
 });
 
 export const stanfordSelectUserLocationSchema = z

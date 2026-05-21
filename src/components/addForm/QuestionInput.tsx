@@ -42,7 +42,8 @@ const QuestionInput = ({
               question.id,
               question.question,
               question.showInTeacherExport,
-              e.target.value
+              e.target.value,
+              question.matrixGroup
             )
           }
           required
@@ -57,10 +58,26 @@ const QuestionInput = ({
               question.id,
               e.target.value,
               question.showInTeacherExport,
-              question.name ?? ""
+              question.name ?? "",
+              question.matrixGroup
             )
           }
           required
+        />
+
+        <Input
+          placeholder="Matrix group (optional — same value groups questions into a matrix)"
+          type="text"
+          value={question.matrixGroup ?? ""}
+          onChange={(e) =>
+            updateQuestion(
+              question.id,
+              question.question,
+              question.showInTeacherExport,
+              question.name ?? "",
+              e.target.value
+            )
+          }
         />
         <div className="flex items-center gap-x-1">
           <h4 className="text-sm font-medium">Options</h4>

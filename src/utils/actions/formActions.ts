@@ -163,14 +163,18 @@ export const updateForm = async (prevState: any, formData: FormData) => {
       throw Error("You cannot enable certificates for pre-surveys");
     }
 
+    const updateData: Parameters<typeof prisma.form.update>[0]["data"] = {
+      active: validatedFields.active,
+      provideCertificate: validatedFields.provideCertificate,
+    };
+
+    if (validatedFields.questions) {
+      updateData.questions = { set: JSON.parse(validatedFields.questions) };
+    }
+
     await prisma.form.update({
-      where: {
-        id: validatedFields.formId,
-      },
-      data: {
-        active: validatedFields.active,
-        provideCertificate: validatedFields.provideCertificate,
-      },
+      where: { id: validatedFields.formId },
+      data: updateData,
     });
 
     return {

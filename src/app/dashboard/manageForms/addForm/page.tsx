@@ -22,7 +22,8 @@ const createQuestion = () => {
       { id: uuidv4(), text: "", code: 0 },
       { id: uuidv4(), text: "", code: 0 },
     ],
-    name:""
+    name: "",
+    matrixGroup: "",
   };
 };
 
@@ -37,17 +38,16 @@ const AddFormPage = () => {
     questionId: string,
     text: string,
     showInTeacherExport: boolean,
-    name: string
+    name: string,
+    matrixGroup?: string
   ) => {
     setQuestions((prev) =>
       prev.map((question) =>
         question.id === questionId
-          ? { ...question, question: text, showInTeacherExport, name }
+          ? { ...question, question: text, showInTeacherExport, name, matrixGroup: matrixGroup ?? question.matrixGroup }
           : question
       )
     );
-
-    console.log(questions);
   };
 
   const deleteQuestion = (questionId: string) => {

@@ -8,9 +8,11 @@ import { v4 as uuidv4 } from "uuid";
 const Question = ({
   question,
   disabled = false,
+  children,
 }: {
   question: Question;
   disabled?: boolean;
+  children?: React.ReactNode;
 }) => {
   return (
     <Card className="mt-4">
@@ -34,6 +36,7 @@ const Question = ({
             );
           })}
         </RadioGroup>
+        {children}
       </CardContent>
     </Card>
   );

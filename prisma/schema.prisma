@@ -78,6 +78,7 @@ type Question {
   showInTeacherExport Boolean
   options Option[]
   name String?
+  matrixGroup String?
 }
 
 model Form {
