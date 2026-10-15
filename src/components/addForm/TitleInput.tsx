@@ -2,8 +2,6 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { useState } from "react";
-import { Button } from "../ui/button";
-import Link from "next/link";
 
 const TitleInput = ({
   defaultValue = "Untitled form",
@@ -34,14 +32,7 @@ const TitleInput = ({
         {note && (
           <p className="mt-2 text-sm text-muted-foreground">{note}</p>
         )}
-        {description && (
-          <div>
-            <p className="mt-4">{description}</p>
-            <Button variant="link" className="mt-2 pl-0" asChild>
-              <Link href="/">Go to Homepage</Link>
-            </Button>
-          </div>
-        )}
+        {description && <p className="mt-4">{description}</p>}
       </CardContent>
     </Card>
   );
