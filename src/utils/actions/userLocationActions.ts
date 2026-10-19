@@ -30,9 +30,11 @@ export const fillUserLocationDetails = async (
     });
 
     userLocation.state = validatedFields.state;
-    if (completeLocation?.district && completeLocation?.county) {
-      userLocation.district = completeLocation.district;
+    // District is optional (private schools, colleges), so copy county even
+    // when the school has no district.
+    if (completeLocation?.county) {
       userLocation.county = completeLocation.county;
+      userLocation.district = completeLocation.district ?? null;
     }
   }
 };

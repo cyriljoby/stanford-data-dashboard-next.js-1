@@ -205,14 +205,7 @@ export const createLocationSchema = z
           message: "County is required for UNITED STATES locations",
         });
       }
-
-      if (!data.district) {
-        ctx.addIssue({
-          path: ["district"],
-          code: z.ZodIssueCode.custom,
-          message: "District is required for UNITED STATES locations",
-        });
-      }
+      // District is optional: private schools and colleges aren't in one.
     }
   });
 

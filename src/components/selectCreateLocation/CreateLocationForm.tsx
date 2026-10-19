@@ -71,41 +71,31 @@ const CreateLocationForm = ({
     updateCounties();
   }, [location.state]);
 
+  // District is optional (private schools, colleges), so cities hang off the
+  // county rather than the district.
   useEffect(() => {
-    const updateDistricts = async () => {
+    const updateDistrictsAndCities = async () => {
       setLocation((prev) => ({ ...prev, district: "", city: "" }));
+      setDistricts([]);
       setCities([]);
 
       if (location.county) {
-        const districts = await fetchLocations("district", {
+        const query = {
           country: location.country,
           state: location.state,
           county: location.county,
-        });
+        };
+        const [districts, cities] = await Promise.all([
+          fetchLocations("district", query),
+          fetchLocations("city", query),
+        ]);
         setDistricts(districts);
-      }
-    };
-
-    updateDistricts();
-  }, [location.county]);
-
-  useEffect(() => {
-    const updateCities = async () => {
-      setLocation((prev) => ({ ...prev, city: "" }));
-
-      if (location.district) {
-        const cities = await fetchLocations("city", {
-          country: location.country,
-          state: location.state,
-          county: location.county,
-          district: location.district,
-        });
         setCities(cities);
       }
     };
 
-    updateCities();
-  }, [location.district]);
+    updateDistrictsAndCities();
+  }, [location.county]);
 
   return (
     <FormContainer action={createLocation}>
@@ -142,6 +132,7 @@ const CreateLocationForm = ({
               setLocation((prev) => ({ ...prev, district }))
             }
             options={districts}
+            optional
           />
           <LocationComboBox
             name="city"

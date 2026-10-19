@@ -45,5 +45,13 @@ export const fetchLocations = async (
   const res = await fetch(`/api/locations?${params.toString()}`);
   const data: { locations: Record<string, string>[] } = await res.json();
 
-  return [...new Set(data.locations.map((item) => item[returnType]).sort())];
+  // Optional levels (e.g. district) are null on some rows; don't offer those.
+  return [
+    ...new Set(
+      data.locations
+        .map((item) => item[returnType])
+        .filter((value): value is string => !!value)
+        .sort()
+    ),
+  ];
 };

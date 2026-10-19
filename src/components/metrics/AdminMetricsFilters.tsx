@@ -252,18 +252,25 @@ const AdminMetricsFilters = ({
       setSchools([]);
 
       if (location.county !== "All") {
-        const districts = await fetchLocations("district", {
+        const query = {
           country: location.country,
           state: location.state,
           county: location.county,
-        });
+        };
+        const [districts, cities] = await Promise.all([
+          fetchLocations("district", query),
+          fetchLocations("city", query),
+        ]);
         setDistricts(districts);
+        setCities(cities);
       }
     };
 
     updateDistricts();
   }, [location.county]);
 
+  // District is optional (private schools, colleges), so cities come from the
+  // county and are only narrowed by district when one is picked.
   useEffect(() => {
     if (fixedCityAndSchool) return;
 
@@ -272,13 +279,16 @@ const AdminMetricsFilters = ({
       setCities([]);
       setSchools([]);
 
-      if (location.district !== "All") {
-        const cities = await fetchLocations("city", {
+      if (location.county && location.county !== "All") {
+        const cityQuery: Record<string, string> = {
           country: location.country,
           state: location.state,
           county: location.county,
-          district: location.district,
-        });
+        };
+        if (location.district && location.district !== "All") {
+          cityQuery.district = location.district;
+        }
+        const cities = await fetchLocations("city", cityQuery);
         setCities(cities);
       }
     };
@@ -308,7 +318,9 @@ const AdminMetricsFilters = ({
         if (isUSA) {
           schoolQuery.state = location.state;
           schoolQuery.county = location.county;
-          schoolQuery.district = location.district;
+          if (location.district !== "All") {
+            schoolQuery.district = location.district;
+          }
         }
 
         const schools = await fetchLocations("school", schoolQuery);

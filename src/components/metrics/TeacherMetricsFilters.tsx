@@ -256,19 +256,25 @@ const TeacherMetricsFilters = ({
     setSchools([]);
 
     if (location.county !== "All") {
-      const districts = teacherLocations
-        .filter(
-          (t) =>
-            t.country === location.country &&
-            t.state === location.state &&
-            t.county === location.county
-        )
+      const inCounty = teacherLocations.filter(
+        (t) =>
+          t.country === location.country &&
+          t.state === location.state &&
+          t.county === location.county
+      );
+      const districts = inCounty
         .map((t) => t.district)
-        .filter((district): district is string => district !== null);
+        .filter((district): district is string => !!district);
       setDistricts([...new Set(districts)]);
+      const cities = inCounty
+        .map((t) => t.city)
+        .filter((city): city is string => city !== null);
+      setCities([...new Set(cities)]);
     }
   }, [location.county]);
 
+  // District is optional (private schools, colleges), so cities come from the
+  // county and are only narrowed by district when one is picked.
   useEffect(() => {
     if (oneLocation) return;
 
@@ -276,14 +282,14 @@ const TeacherMetricsFilters = ({
     setCities([]);
     setSchools([]);
 
-    if (location.district !== "All") {
+    if (location.county !== "All") {
       const cities = teacherLocations
         .filter(
           (t) =>
             t.country === location.country &&
             t.state === location.state &&
             t.county === location.county &&
-            t.district === location.district
+            (location.district === "All" || t.district === location.district)
         )
         .map((t) => t.city)
         .filter((city): city is string => city !== null);
@@ -305,7 +311,8 @@ const TeacherMetricsFilters = ({
               t.country === location.country &&
               t.state === location.state &&
               t.county === location.county &&
-              t.district === location.district &&
+              (location.district === "All" ||
+                t.district === location.district) &&
               t.city === location.city
             );
           } else {

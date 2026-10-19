@@ -23,6 +23,9 @@ interface LocationComboBoxProps {
   onChange: (value: string) => void;
   options: string[];
   marginBottom?: number;
+  // Optional fields say so in the placeholder and can be cleared by
+  // selecting the current value again.
+  optional?: boolean;
 }
 
 const LocationComboBox = ({
@@ -31,8 +34,10 @@ const LocationComboBox = ({
   onChange,
   options,
   marginBottom = 4,
+  optional = false,
 }: LocationComboBoxProps) => {
   const [open, setOpen] = useState(false);
+  const placeholder = `Select a ${name}${optional ? " (optional)" : ""}`;
   return (
     <div className={`mb-${marginBottom}`}>
       <Input name={name} value={value} type="hidden" />
@@ -46,7 +51,7 @@ const LocationComboBox = ({
               !value && "text-muted-foreground"
             )}
           >
-            {value ? value : `Select a ${name}`}
+            {value ? value : placeholder}
             <ChevronDownIcon className="size-4 text-muted-foreground opacity-50" />
           </Button>
         </PopoverTrigger>
@@ -56,7 +61,7 @@ const LocationComboBox = ({
           style={{ width: "var(--radix-popover-trigger-width)" }}
         >
           <Command>
-            <CommandInput placeholder={`Select a ${name}`} className="h-9" />
+            <CommandInput placeholder={placeholder} className="h-9" />
             <CommandList>
               <CommandEmpty>No {name} found.</CommandEmpty>
               <CommandGroup>
@@ -65,7 +70,9 @@ const LocationComboBox = ({
                     value={option}
                     key={option}
                     onSelect={(currentValue) => {
-                      onChange(currentValue);
+                      onChange(
+                        optional && currentValue === value ? "" : currentValue
+                      );
                       setOpen(false);
                     }}
                   >
