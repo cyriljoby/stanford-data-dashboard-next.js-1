@@ -15,6 +15,7 @@ import type {
   DistributionResult,
 } from "@/utils/actions/distributionActions";
 import DistributionCharts from "./DistributionCharts";
+import ChartsInfoButton from "./ChartsInfoButton";
 import { toast } from "sonner";
 import { SubmitButton } from "../form/Buttons";
 import { Button } from "../ui/button";
@@ -451,16 +452,19 @@ const TeacherMetricsFilters = ({
           className="self-end"
           text={loading ? "Exporting..." : "Export Data"}
         />
-        <Button
-          type="button"
-          size="lg"
-          variant="secondary"
-          className="self-end"
-          disabled={loadingCharts}
-          onClick={() => handleViewCharts()}
-        >
-          {loadingCharts ? "Loading Charts..." : "View Charts"}
-        </Button>
+        <div className="flex items-end gap-1">
+          <Button
+            type="button"
+            size="lg"
+            variant="secondary"
+            className="flex-1"
+            disabled={loadingCharts}
+            onClick={() => handleViewCharts()}
+          >
+            {loadingCharts ? "Loading Charts..." : "View Charts"}
+          </Button>
+          <ChartsInfoButton isTeacher />
+        </div>
         <Button
           type="button"
           variant="outline"

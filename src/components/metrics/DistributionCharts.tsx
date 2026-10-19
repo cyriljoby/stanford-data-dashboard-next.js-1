@@ -1,8 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Label } from "../ui/label";
-import SelectInput from "../form/SelectInput";
+import { Button } from "../ui/button";
 import type {
   ComparisonResult,
   DistributionResult,
@@ -10,9 +9,12 @@ import type {
 
 const MATRIX_SEPARATOR = "... ";
 
+// Pre / post series. Light and dark steps are validated separately against their
+// own surface: blue↔red separation holds under protanopia and deuteranopia, and
+// the legend dots above mean identity never rests on colour alone.
 const SERIES_COLORS = [
   "bg-[#2a78d6] dark:bg-[#3987e5]",
-  "bg-[#eb6834] dark:bg-[#d95926]",
+  "bg-[#d32f2f] dark:bg-[#e5484d]",
 ];
 
 type SeriesMeta = {
@@ -229,12 +231,33 @@ const OptionBars = ({
 const QuestionCard = ({
   group,
   series,
+  onSelect,
 }: {
   group: QuestionGroup;
   series: SeriesMeta[];
+  // When set the card is clickable and isolates this question. Omitted once a
+  // question is already isolated, so the card stops being a control.
+  onSelect?: () => void;
 }) => {
+  const interactive = onSelect
+    ? {
+        role: "button",
+        tabIndex: 0,
+        onClick: onSelect,
+        onKeyDown: (e: React.KeyboardEvent) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onSelect();
+          }
+        },
+        "aria-label": `View "${group.title}" on its own`,
+        className:
+          "rounded-lg border p-4 cursor-pointer transition-colors hover:border-foreground/30 hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+      }
+    : { className: "rounded-lg border p-4" };
+
   return (
-    <div className="rounded-lg border p-4">
+    <div {...interactive}>
       <p className="mb-1 text-sm font-medium">{group.title}</p>
       {!group.isMatrix && (
         <p className="mb-3 text-xs text-muted-foreground">
@@ -334,8 +357,7 @@ const DistributionCharts = ({
           {isCompare && (
             <p className="mt-1 text-xs text-muted-foreground">
               Compares all pre-survey vs all post-survey responses matching the
-              filters — responses are anonymous and not linked student to
-              student.
+              filters.
             </p>
           )}
           {normalized.notices.map((n) => (
@@ -344,25 +366,22 @@ const DistributionCharts = ({
             </p>
           ))}
         </div>
-        <div className="w-full max-w-sm">
-          <Label>Question</Label>
-          <SelectInput
-            name="chartQuestion"
-            placeholder="All questions"
-            options={[
-              { text: "All questions", value: "All" },
-              ...groups.map((g) => ({
-                text:
-                  g.title.length > 80 ? `${g.title.slice(0, 77)}...` : g.title,
-                value: g.key,
-              })),
-            ]}
-            defaultValue="All"
-            withMargin={false}
-            onValueChange={setSelectedGroup}
-            capitalizeItems={false}
-          />
-        </div>
+        {selectedGroup === "All" ? (
+          groups.length > 1 && (
+            <p className="text-xs text-muted-foreground">
+              Select a question to view it on its own
+            </p>
+          )
+        ) : (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setSelectedGroup("All")}
+          >
+            ← All questions
+          </Button>
+        )}
       </div>
       <div
         className={
@@ -374,6 +393,11 @@ const DistributionCharts = ({
             key={group.key}
             group={group}
             series={normalized.series}
+            onSelect={
+              selectedGroup === "All"
+                ? () => setSelectedGroup(group.key)
+                : undefined
+            }
           />
         ))}
       </div>
