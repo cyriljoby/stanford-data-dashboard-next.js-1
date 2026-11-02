@@ -129,21 +129,36 @@ const resolveVersions = async (selectedForm: string) => {
   return { baseName, versions, versionTitles, variants };
 };
 
-// Builds the response-level $match constraints (geography clamped to the
-// viewer's role, plus date range). `empty` means the geo filter matched no
-// locations at all.
-const buildResponseMatch = async (
+// The geography and date constraints for both response collections, clamped to
+// the viewer's role. A null side means nothing in scope can come from it.
+type ResponseScope = {
+  // $match on ResponseWithTeacher.
+  teacher: Record<string, unknown> | null;
+  // No-code (ResponseWithoutTeacher) responses are tied to a Location rather
+  // than a UserLocation, so their geography is matched on the joined Location.
+  // Teachers only see their own coded responses, so they get null here.
+  noCode: {
+    match: Record<string, unknown>;
+    location: Record<string, unknown>;
+  } | null;
+};
+
+const isEmptyScope = (scope: ResponseScope) =>
+  scope.teacher === null && scope.noCode === null;
+
+const buildResponseScope = async (
   role: Roles,
   userId: string,
   filters: CompareFilters
-): Promise<{ empty: boolean; match: Record<string, unknown> }> => {
-  const match: Record<string, unknown> = {};
+): Promise<ResponseScope> => {
+  const emptyScope: ResponseScope = { teacher: null, noCode: null };
+  const teacherMatch: Record<string, unknown> = {};
 
-  const whereLocation: Record<string, unknown> = { approved: true };
+  // Unescaped values; drive both the UserLocation and the Location filters.
+  let geo: Record<string, string> = {};
 
   if (role === Roles.teacher) {
-    whereLocation.userId = { $oid: userId };
-    match.teacherId = { $oid: userId };
+    teacherMatch.teacherId = { $oid: userId };
   } else if (role !== Roles.stanford) {
     // Ordered so an admin with several rows always resolves to the same one.
     // Deliberately not a union: admins who also teach carry rows for their
@@ -161,17 +176,13 @@ const buildResponseMatch = async (
       },
     });
 
-    // Fail closed: an unresolvable scope leaves whereLocation empty, which makes
-    // geoConstrained false below and aggregates the whole corpus.
+    // Fail closed: an unresolvable scope would otherwise leave geo empty and
+    // aggregate the whole corpus.
     if (!adminLocation || !definingFieldFor(role, adminLocation)) {
-      return { empty: true, match };
+      return emptyScope;
     }
 
-    for (const [field, value] of Object.entries(
-      scopeForRole(role, adminLocation)
-    )) {
-      whereLocation[field] = equalsInsensitive(value);
-    }
+    geo = scopeForRole(role, adminLocation);
   }
 
   const filterKeys = [
@@ -184,28 +195,14 @@ const buildResponseMatch = async (
   ] as const;
   for (const key of filterKeys) {
     const val = filters[key];
-    if (val && val !== "All" && !whereLocation[key]) {
-      whereLocation[key] = equalsInsensitive(val);
+    if (val && val !== "All" && !geo[key]) {
+      geo[key] = val;
     }
   }
 
-  // A location $in list is only needed when geography is actually
-  // constrained; for an unrestricted Stanford view the list would span
-  // every UserLocation and only slow the query down.
-  const geoConstrained =
-    Object.keys(whereLocation).filter((k) => k !== "approved" && k !== "userId")
-      .length > 0 || role === Roles.teacher;
-  if (geoConstrained) {
-    const userLocations = (await prisma.userLocation.findRaw({
-      filter: whereLocation as Prisma.InputJsonObject,
-      options: { projection: { _id: 1 } },
-    })) as unknown as Array<{ _id: { $oid: string } }>;
-    if (userLocations.length === 0) {
-      return { empty: true, match };
-    }
-    match.teacherLocationId = {
-      $in: userLocations.map((l) => ({ $oid: l._id.$oid })),
-    };
+  const geoFilter: Record<string, unknown> = {};
+  for (const [field, value] of Object.entries(geo)) {
+    geoFilter[field] = equalsInsensitive(value);
   }
 
   const createdAt: Record<string, unknown> = {};
@@ -215,53 +212,127 @@ const buildResponseMatch = async (
   if (filters.endDate) {
     createdAt.$lte = { $date: `${filters.endDate}T23:59:59.999Z` };
   }
-  if (Object.keys(createdAt).length > 0) {
-    match.createdAt = createdAt;
+  const dateMatch = Object.keys(createdAt).length > 0 ? { createdAt } : {};
+
+  // A location $in list is only needed when geography is actually
+  // constrained; for an unrestricted Stanford view the list would span
+  // every UserLocation and only slow the query down.
+  let teacher: Record<string, unknown> | null = { ...teacherMatch, ...dateMatch };
+  if (Object.keys(geoFilter).length > 0 || role === Roles.teacher) {
+    const whereLocation: Record<string, unknown> = {
+      approved: true,
+      ...geoFilter,
+    };
+    if (role === Roles.teacher) {
+      whereLocation.userId = { $oid: userId };
+    }
+    const userLocations = (await prisma.userLocation.findRaw({
+      filter: whereLocation as Prisma.InputJsonObject,
+      options: { projection: { _id: 1 } },
+    })) as unknown as Array<{ _id: { $oid: string } }>;
+    teacher =
+      userLocations.length === 0
+        ? null
+        : {
+            ...teacher,
+            teacherLocationId: {
+              $in: userLocations.map((l) => ({ $oid: l._id.$oid })),
+            },
+          };
   }
 
-  return { empty: false, match };
+  const noCode =
+    role === Roles.teacher
+      ? null
+      : {
+          match: dateMatch,
+          location: Object.fromEntries(
+            Object.entries(geoFilter).map(([f, v]) => [`location.${f}`, v])
+          ),
+        };
+
+  return { teacher, noCode };
+};
+
+type FacetResult = Array<{
+  total: Array<{ n: number }>;
+  counts: Array<{
+    _id: { questionId: string; optionCode: number };
+    count: number;
+  }>;
+}>;
+
+const countFacet = {
+  $facet: {
+    total: [{ $count: "n" }],
+    counts: [
+      { $unwind: "$answers" },
+      {
+        $group: {
+          _id: {
+            questionId: "$answers.questionId",
+            optionCode: "$answers.optionCode",
+          },
+          count: { $sum: 1 },
+        },
+      },
+    ],
+  },
 };
 
 const aggregateResponses = async (
   formId: string,
-  baseMatch: Record<string, unknown>
+  scope: ResponseScope
 ): Promise<{ total: number; countMap: Map<string, number> }> => {
-  const match = { ...baseMatch, formId: { $oid: formId } };
+  const formMatch = { formId: { $oid: formId } };
 
-  const rawResults = (await prisma.responseWithTeacher.aggregateRaw({
-    pipeline: [
-      { $match: match as Prisma.InputJsonObject },
-      {
-        $facet: {
-          total: [{ $count: "n" }],
-          counts: [
-            { $unwind: "$answers" },
-            {
-              $group: {
-                _id: {
-                  questionId: "$answers.questionId",
-                  optionCode: "$answers.optionCode",
-                },
-                count: { $sum: 1 },
-              },
+  const teacherQuery = scope.teacher
+    ? (prisma.responseWithTeacher.aggregateRaw({
+        pipeline: [
+          { $match: { ...scope.teacher, ...formMatch } as Prisma.InputJsonObject },
+          countFacet,
+        ],
+      }) as unknown as Promise<FacetResult>)
+    : Promise.resolve([] as FacetResult);
+
+  // There are few no-code responses but ~100k Locations, so narrow the
+  // responses first and join each to its Location rather than resolving a
+  // Location id list. The $unwind also drops orphans, matching the export.
+  const noCodeQuery = scope.noCode
+    ? (prisma.responseWithoutTeacher.aggregateRaw({
+        pipeline: [
+          {
+            $match: {
+              ...scope.noCode.match,
+              ...formMatch,
+            } as Prisma.InputJsonObject,
+          },
+          {
+            $lookup: {
+              from: "Location",
+              localField: "locationId",
+              foreignField: "_id",
+              as: "location",
             },
-          ],
-        },
-      },
-    ],
-  })) as unknown as Array<{
-    total: Array<{ n: number }>;
-    counts: Array<{
-      _id: { questionId: string; optionCode: number };
-      count: number;
-    }>;
-  }>;
+          },
+          { $unwind: "$location" },
+          { $match: scope.noCode.location as Prisma.InputJsonObject },
+          { $project: { answers: 1 } },
+          countFacet,
+        ],
+      }) as unknown as Promise<FacetResult>)
+    : Promise.resolve([] as FacetResult);
 
-  const facet = rawResults[0];
-  const total = facet?.total?.[0]?.n ?? 0;
+  const results = await Promise.all([teacherQuery, noCodeQuery]);
+
+  let total = 0;
   const countMap = new Map<string, number>();
-  for (const row of facet?.counts ?? []) {
-    countMap.set(`${row._id.questionId}:${row._id.optionCode}`, row.count);
+  for (const [facet] of results) {
+    total += facet?.total?.[0]?.n ?? 0;
+    for (const row of facet?.counts ?? []) {
+      const key = `${row._id.questionId}:${row._id.optionCode}`;
+      countMap.set(key, (countMap.get(key) ?? 0) + row.count);
+    }
   }
   return { total, countMap };
 };
@@ -330,12 +401,12 @@ export const getDistribution = async (
       questions: [],
     });
 
-    const scope = await buildResponseMatch(role, userId, filters);
-    if (scope.empty) {
+    const scope = await buildResponseScope(role, userId, filters);
+    if (isEmptyScope(scope)) {
       return emptyResult();
     }
 
-    const { total, countMap } = await aggregateResponses(form.id, scope.match);
+    const { total, countMap } = await aggregateResponses(form.id, scope);
 
     if (total === 0) {
       return emptyResult();
@@ -389,7 +460,7 @@ export const getPrePostDistribution = async (
       return { error: "No survey found for this form version" };
     }
 
-    const scope = await buildResponseMatch(role, userId, filters);
+    const scope = await buildResponseScope(role, userId, filters);
 
     const emptySide: CompareSide = { exists: false, empty: false, total: 0 };
 
@@ -397,16 +468,13 @@ export const getPrePostDistribution = async (
       form: FormVariant | null
     ): Promise<{ side: CompareSide; countMap: Map<string, number> }> => {
       if (!form) return { side: emptySide, countMap: new Map() };
-      if (scope.empty) {
+      if (isEmptyScope(scope)) {
         return {
           side: { exists: true, empty: true, total: 0 },
           countMap: new Map(),
         };
       }
-      const { total, countMap } = await aggregateResponses(
-        form.id,
-        scope.match
-      );
+      const { total, countMap } = await aggregateResponses(form.id, scope);
       if (total === 0) {
         return {
           side: { exists: true, empty: true, total: 0 },
