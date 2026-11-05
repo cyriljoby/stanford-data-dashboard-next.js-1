@@ -19,8 +19,12 @@ const MatrixQuestion = ({
   const sepIdx = firstQ.question.indexOf(SEPARATOR);
   const stem =
     sepIdx >= 0 ? firstQ.question.substring(0, sepIdx) : firstQ.question;
-  const options = firstQ.options;
-  const isBinary = options.length === 2;
+  // Layout comes from the full option list: the binary layout auto-submits the
+  // "not selected" code, so hiding an option must never switch a question to it.
+  const isBinary = firstQ.options.length === 2;
+  const options = isBinary
+    ? firstQ.options
+    : firstQ.options.filter((o) => !o.hidden);
 
   // For binary questions: hidden input tracks 0/1 per row (default = not-selected code)
   const notSelectedCode = isBinary ? options[0].code.toString() : "";

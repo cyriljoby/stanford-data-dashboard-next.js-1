@@ -20,6 +20,10 @@ const Question = ({
         <h3 className="text-lg">{question.question}</h3>
         <RadioGroup disabled={disabled} name={question.id}>
           {question.options.map((option, i) => {
+            // The disabled card is the admin preview, which still lists hidden
+            // options; respondents never see them.
+            if (option.hidden && !disabled) return null;
+
             const id = uuidv4();
 
             return (
@@ -31,6 +35,7 @@ const Question = ({
                 />
                 <Label htmlFor={id} className="text-md">
                   {option.text} {disabled && `, Code: ${option.code}`}
+                  {disabled && option.hidden && " (hidden)"}
                 </Label>
               </div>
             );

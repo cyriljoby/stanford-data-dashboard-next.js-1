@@ -20,7 +20,7 @@ const SchoolAndPeriodInput = ({
 }) => {
   const [multiplePeriods, setMultiplePeriods] = useState(false);
 
-  const periods = Array.from({ length: 9 }, (_, i) => {
+  const periods = Array.from({ length: 11 }, (_, i) => {
     return { text: i.toString(), value: i.toString() };
   });
 

@@ -5,7 +5,7 @@ import { useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { IoIosAddCircleOutline } from "react-icons/io";
 import { CgTrash } from "react-icons/cg";
-import { X } from "lucide-react";
+import { Eye, EyeOff, X } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -92,6 +92,7 @@ const EditQuestionsPanel = ({
                   text: "",
                   code:
                     Math.max(0, ...q.options.map((o) => o.code)) + 1,
+                  hidden: false,
                 },
               ],
             }
@@ -104,8 +105,11 @@ const EditQuestionsPanel = ({
     setQuestions((prev) =>
       prev.map((q) => {
         if (q.id !== questionId) return q;
-        if (q.options.length <= 2) {
-          toast.error("Each question needs at least 2 options");
+        const visibleLeft = q.options.filter(
+          (o, i) => i !== optionIndex && !o.hidden
+        ).length;
+        if (visibleLeft < 2) {
+          toast.error("Each question needs at least 2 visible options");
           return q;
         }
         return {
@@ -113,6 +117,41 @@ const EditQuestionsPanel = ({
           options: q.options.filter((_, i) => i !== optionIndex),
         };
       })
+    );
+  };
+
+  // Matrix rows render one shared set of columns, so hiding applies to the same
+  // code on every row in the group.
+  const toggleOptionHidden = (questionId: string, code: number) => {
+    const target = questions.find((q) => q.id === questionId);
+    if (!target) return;
+
+    const inScope = (q: Question) =>
+      q.id === target.id ||
+      (!!target.matrixGroup && q.matrixGroup === target.matrixGroup);
+    const hide = !target.options.find((o) => o.code === code)?.hidden;
+
+    const wouldLeaveTooFew = questions
+      .filter(inScope)
+      .some(
+        (q) => q.options.filter((o) => !o.hidden && o.code !== code).length < 2
+      );
+    if (hide && wouldLeaveTooFew) {
+      toast.error("Each question needs at least 2 visible options");
+      return;
+    }
+
+    setQuestions((prev) =>
+      prev.map((q) =>
+        inScope(q)
+          ? {
+              ...q,
+              options: q.options.map((o) =>
+                o.code === code ? { ...o, hidden: hide } : o
+              ),
+            }
+          : q
+      )
     );
   };
 
@@ -236,7 +275,7 @@ const EditQuestionsPanel = ({
             <div className="space-y-1">
               <Label className="text-xs text-muted-foreground">
                 {answered.has(question.id)
-                  ? "Options (codes are locked — this question already has responses)"
+                  ? "Options (codes are locked — this question already has responses, but you can hide options from new respondents)"
                   : "Options (no responses yet, so codes can still be changed)"}
               </Label>
               <div className="space-y-1.5">
@@ -247,6 +286,7 @@ const EditQuestionsPanel = ({
                   >
                     <Input
                       value={opt.text}
+                      className={opt.hidden ? "opacity-50" : undefined}
                       onChange={(e) => updateOptionText(question.id, i, e.target.value)}
                     />
                     {answered.has(question.id) ? (
@@ -254,7 +294,29 @@ const EditQuestionsPanel = ({
                         <span className="text-xs text-muted-foreground w-20 text-right">
                           code: {opt.code}
                         </span>
-                        <span className="w-8" />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          aria-label={
+                            opt.hidden
+                              ? "Show option to respondents"
+                              : "Hide option from respondents"
+                          }
+                          title={
+                            opt.hidden
+                              ? "Hidden from respondents. Click to show."
+                              : "Hide from respondents. Existing responses are kept."
+                          }
+                          className="w-8"
+                          onClick={() => toggleOptionHidden(question.id, opt.code)}
+                        >
+                          {opt.hidden ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </Button>
                       </>
                     ) : (
                       <>
@@ -267,6 +329,21 @@ const EditQuestionsPanel = ({
                             updateOptionCode(question.id, i, Number(e.target.value))
                           }
                         />
+                        <div className="flex items-center">
+                        {/* Reachable via matrix sync, so it must be reversible here too. */}
+                        {opt.hidden && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            aria-label="Show option to respondents"
+                            title="Hidden from respondents. Click to show."
+                            className="w-8"
+                            onClick={() => toggleOptionHidden(question.id, opt.code)}
+                          >
+                            <EyeOff className="h-4 w-4" />
+                          </Button>
+                        )}
                         <Button
                           type="button"
                           variant="ghost"
@@ -277,6 +354,7 @@ const EditQuestionsPanel = ({
                         >
                           <X className="h-4 w-4" />
                         </Button>
+                        </div>
                       </>
                     )}
                   </div>

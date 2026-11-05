@@ -212,6 +212,8 @@ export const createLocationSchema = z
 const OptionSchema = z.object({
   text: z.string().trim().min(1, "Option text cannot be empty"),
   code: z.number(),
+  // Must be declared or Zod strips it, which would unhide options on save.
+  hidden: z.boolean().optional(),
 });
 
 // Ids are minted server-side before validation, so `id` is always present by
@@ -225,7 +227,10 @@ const QuestionSchema = z.object({
   matrixGroup: z.string().trim().nullable().optional(),
   options: z
     .array(OptionSchema)
-    .min(2, "Each question needs at least 2 options"),
+    .min(2, "Each question needs at least 2 options")
+    .refine((options) => options.filter((o) => !o.hidden).length >= 2, {
+      message: "Each question needs at least 2 visible options",
+    }),
 });
 
 export const questionsSchema = z.array(QuestionSchema);
@@ -348,7 +353,7 @@ export const createResponseWithTeacherSchema = z.object({
   details: z.object({
     locationId: z.string().min(1, "Location id is a required field"),
     period: z
-      .enum(["0", "1", "2", "3", "4", "5", "6", "7", "8", ""])
+      .enum(["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", ""])
       .transform((val) => (val === "" ? null : Number(val))),
     grade: z.enum([
       "k",
