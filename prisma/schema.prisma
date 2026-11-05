@@ -71,6 +71,7 @@ enum SurveyTypes {
 type Option {
   text String
   code Int
+  hidden Boolean @default(false)
 }
 
 type Question {
